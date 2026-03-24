@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Expense Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <style>
     :root {
       --primary:       #2563eb;
@@ -454,21 +455,22 @@
 
         <div class="drop-zone" id="drop-zone">
           <div class="drop-icon">📂</div>
-          <h3>Drop your CSV file here</h3>
+          <h3>Drop your CSV or PDF file here</h3>
           <p>or <span class="link" id="browse-link">browse to choose a file</span></p>
-          <input type="file" id="file-input" accept=".csv,.CSV">
+          <input type="file" id="file-input" accept=".csv,.CSV,.pdf,.PDF">
         </div>
 
         <div id="detected-format" style="display:none;margin-bottom:16px"></div>
 
         <p style="font-size:13px;color:var(--text-2);margin-bottom:8px">Supported sources</p>
         <div class="supported-banks">
-          <span class="bank-tag">💳 Chase Credit Card</span>
-          <span class="bank-tag">🏦 Chase Bank / Checking</span>
-          <span class="bank-tag">💸 Venmo</span>
-          <span class="bank-tag">💳 Capital One</span>
-          <span class="bank-tag">💳 Citi</span>
-          <span class="bank-tag">💳 Bank of America</span>
+          <span class="bank-tag">💳 Chase Credit Card (CSV)</span>
+          <span class="bank-tag">🏦 Chase Bank / Checking (CSV)</span>
+          <span class="bank-tag">🏦 TD Bank (PDF)</span>
+          <span class="bank-tag">💸 Venmo (CSV)</span>
+          <span class="bank-tag">💳 Capital One (CSV)</span>
+          <span class="bank-tag">💳 Citi (CSV)</span>
+          <span class="bank-tag">💳 Bank of America (CSV)</span>
         </div>
       </div>
     </div>
@@ -686,6 +688,7 @@ const FORMAT_LABELS = {
   'chase-credit': { label: '💳 Chase Credit Card', color: '#2563eb' },
   'chase-bank':   { label: '🏦 Chase Bank / Checking', color: '#16a34a' },
   'venmo':        { label: '💸 Venmo', color: '#3b6ef5' },
+  'td-bank':      { label: '🏦 TD Bank', color: '#00a650' },
   'generic':      { label: '📄 Generic Bank CSV', color: '#6b7280' },
 };
 
@@ -699,6 +702,8 @@ function detectFormat(text) {
     return 'chase-credit';
   if (h.includes('details') && h.includes('posting date') && h.includes('balance'))
     return 'chase-bank';
+  if (h.includes('td bank') || h.includes('td beyond checking') || h.includes('tdbank'))
+    return 'td-bank';
   // Venmo: scan first several lines for the real header (has metadata rows before it)
   for (let i = 0; i < Math.min(lines.length, 6); i++) {
     const l = lines[i].toLowerCase();
@@ -910,6 +915,102 @@ function parseGenericCSV(text) {
   return rows;
 }
 
+// ── TD Bank PDF Parser ───────────────────────────────────────────────────────
+function parseTDBankPDF(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Extract statement period to resolve year for each transaction
+  // e.g. "Statement Period: Dec 12 2025-Jan 11 2026"
+  let startMonth = 1, startYear = new Date().getFullYear();
+  let endMonth = 12,  endYear  = startYear;
+  const periodRe = /Statement Period[:\s]+(\w+)\s+\d+\s+(\d{4})[-–](\w+)\s+\d+\s+(\d{4})/i;
+  const periodMatch = text.match(periodRe);
+  if (periodMatch) {
+    const mn = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    startMonth = mn.indexOf(periodMatch[1].toLowerCase().slice(0,3)) + 1 || 1;
+    startYear  = parseInt(periodMatch[2]);
+    endMonth   = mn.indexOf(periodMatch[3].toLowerCase().slice(0,3)) + 1 || 12;
+    endYear    = parseInt(periodMatch[4]);
+  }
+
+  function resolveYear(month) {
+    // If statement spans a year boundary, assign year by which side of the boundary month falls on
+    if (startYear === endYear) return startYear;
+    return month >= startMonth ? startYear : endYear;
+  }
+
+  // Sections we want: "Electronic Payments" (and its "continued" pages)
+  // Skip: Deposits, Electronic Deposits, Other Credits, Daily Balance Summary
+  const SKIP_SECTIONS = /^(deposits|electronic deposits|other credits|daily balance|subtotal|ending balance|beginning balance|average collected)/i;
+  const PAYMENT_SECTION = /electronic payments/i;
+  const HEADER_ROW = /posting date|description|amount/i;
+
+  let inPayments = false;
+  const rows = [];
+
+  for (const line of lines) {
+    if (PAYMENT_SECTION.test(line))  { inPayments = true;  continue; }
+    if (SKIP_SECTIONS.test(line))    { inPayments = false; continue; }
+    if (!inPayments || HEADER_ROW.test(line)) continue;
+
+    // Transaction line: MM/DD  DESCRIPTION  AMOUNT
+    // Amount may have commas: 2,159.56
+    const m = line.match(/^(\d{1,2}\/\d{1,2})\s+(.+?)\s+([\d,]+\.\d{2})$/);
+    if (!m) continue;
+
+    const [, dateStr, rawDesc, amtStr] = m;
+    const [mo, dy] = dateStr.split('/').map(Number);
+    const year   = resolveYear(mo);
+    const date   = `${year}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+    const amount = parseFloat(amtStr.replace(/,/g, ''));
+
+    // Clean up description: strip trailing account number masks (****XXXX)
+    const desc = rawDesc.replace(/\s+\*{4}\S+$/, '').trim();
+
+    rows.push({
+      date,
+      description:      desc,
+      originalCategory: '',
+      category:         categorizeByKeyword(desc),
+      amount:           Math.round(amount * 100) / 100,
+    });
+  }
+  return rows;
+}
+
+// ── PDF Text Extraction (PDF.js) ─────────────────────────────────────────────
+async function extractPDFText(arrayBuffer) {
+  // Set worker source (CDN)
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js not loaded — check your internet connection.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page    = await pdf.getPage(p);
+    const content = await page.getTextContent();
+
+    // Group text items by their y-position (rounded) to reconstruct lines
+    const byY = new Map();
+    for (const item of content.items) {
+      if (!item.str.trim()) continue;
+      const y = Math.round(item.transform[5]);
+      if (!byY.has(y)) byY.set(y, []);
+      byY.get(y).push({ x: item.transform[4], str: item.str });
+    }
+
+    // Sort rows top→bottom, items left→right within each row
+    const ys = [...byY.keys()].sort((a, b) => b - a);
+    for (const y of ys) {
+      const rowText = byY.get(y).sort((a, b) => a.x - b.x).map(i => i.str).join(' ');
+      fullText += rowText + '\n';
+    }
+  }
+  return fullText;
+}
+
 // ── Main entry point ─────────────────────────────────────────────────────────
 function parseStatement(text) {
   const format = detectFormat(text);
@@ -917,6 +1018,7 @@ function parseStatement(text) {
     case 'chase-credit': return { rows: parseChaseCreditCSV(text), format };
     case 'chase-bank':   return { rows: parseChaseBankCSV(text),   format };
     case 'venmo':        return { rows: parseVenmoCSV(text),        format };
+    case 'td-bank':      return { rows: parseTDBankPDF(text),       format };
     default:             return { rows: parseGenericCSV(text),      format };
   }
 }
@@ -926,6 +1028,7 @@ const FORMAT_TO_SOURCE = {
   'chase-credit': 'credit-card',
   'chase-bank':   'bank',
   'venmo':        'venmo',
+  'td-bank':      'bank',
   'generic':      'credit-card',
 };
 
@@ -1253,6 +1356,10 @@ fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
 
 function handleFile(file) {
   if (!file) return;
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    handlePDFFile(file);
+    return;
+  }
   const reader = new FileReader();
   reader.onload = e => {
     const { rows, format } = parseStatement(e.target.result);
@@ -1260,6 +1367,19 @@ function handleFile(file) {
     showReview(rows, file.name, format);
   };
   reader.readAsText(file);
+}
+
+async function handlePDFFile(file) {
+  showToast('Reading PDF…');
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const text = await extractPDFText(arrayBuffer);
+    const { rows, format } = parseStatement(text);
+    if (rows.length === 0) { showToast('No valid transactions found in PDF', true); return; }
+    showReview(rows, file.name, format);
+  } catch (e) {
+    showToast('Error reading PDF: ' + e.message, true);
+  }
 }
 
 // Review table events
