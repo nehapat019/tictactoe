@@ -699,12 +699,10 @@ function detectFormat(text) {
     return 'chase-credit';
   if (h.includes('details') && h.includes('posting date') && h.includes('balance'))
     return 'chase-bank';
-  if (h.includes('username') && (h.includes('datetime') || h.includes('note')))
-    return 'venmo';
-  // Venmo sometimes has leading comma and metadata rows — scan deeper
+  // Venmo: scan first several lines for the real header (has metadata rows before it)
   for (let i = 0; i < Math.min(lines.length, 6); i++) {
     const l = lines[i].toLowerCase();
-    if (l.includes('username') && l.includes('amount (total)')) return 'venmo';
+    if (l.includes('datetime') && l.includes('amount (total)')) return 'venmo';
   }
   return 'generic';
 }
@@ -805,11 +803,11 @@ function parseChaseBankCSV(text) {
 function parseVenmoCSV(text) {
   const allLines = text.split(/\r?\n/);
 
-  // Find the header row (contains "Username" and "Amount")
+  // Find the header row (contains "Datetime" and "Amount (total)")
   let headerIdx = -1;
   for (let i = 0; i < allLines.length; i++) {
     const l = allLines[i].toLowerCase();
-    if (l.includes('username') && l.includes('amount')) { headerIdx = i; break; }
+    if (l.includes('datetime') && l.includes('amount (total)')) { headerIdx = i; break; }
   }
   if (headerIdx === -1) return [];
 
