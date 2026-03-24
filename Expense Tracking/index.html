@@ -449,8 +449,8 @@
     <!-- Step 1: Upload -->
     <div id="step-upload">
       <div class="import-hero">
-        <h2>Import Credit Card Statement</h2>
-        <p>Upload a CSV export from your bank. Transactions will be auto-categorized and ready to review.</p>
+        <h2>Import Statement</h2>
+        <p>Upload a CSV export from your bank, credit card, or Venmo. Format is auto-detected and transactions are categorized automatically.</p>
 
         <div class="drop-zone" id="drop-zone">
           <div class="drop-icon">📂</div>
@@ -459,13 +459,16 @@
           <input type="file" id="file-input" accept=".csv,.CSV">
         </div>
 
-        <p style="font-size:13px;color:var(--text-2);margin-bottom:8px">Supported banks</p>
+        <div id="detected-format" style="display:none;margin-bottom:16px"></div>
+
+        <p style="font-size:13px;color:var(--text-2);margin-bottom:8px">Supported sources</p>
         <div class="supported-banks">
-          <span class="bank-tag">Chase ✓ (auto-detected)</span>
-          <span class="bank-tag">Capital One</span>
-          <span class="bank-tag">Citi</span>
-          <span class="bank-tag">Bank of America</span>
-          <span class="bank-tag">American Express</span>
+          <span class="bank-tag">💳 Chase Credit Card</span>
+          <span class="bank-tag">🏦 Chase Bank / Checking</span>
+          <span class="bank-tag">💸 Venmo</span>
+          <span class="bank-tag">💳 Capital One</span>
+          <span class="bank-tag">💳 Citi</span>
+          <span class="bank-tag">💳 Bank of America</span>
         </div>
       </div>
     </div>
@@ -477,7 +480,10 @@
           <div class="page-title" style="margin-bottom:4px">Review Transactions
             <span id="review-filename"></span>
           </div>
-          <div class="review-stats" id="review-stats"></div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <div class="review-stats" id="review-stats"></div>
+        <span id="review-format-badge"></span>
+      </div>
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost" id="btn-back">← Back</button>
@@ -529,6 +535,12 @@
       </select>
       <select class="filter-select" id="filter-cat">
         <option value="">All categories</option>
+      </select>
+      <select class="filter-select" id="filter-source">
+        <option value="">All sources</option>
+        <option value="credit-card">💳 Credit Card</option>
+        <option value="bank">🏦 Bank</option>
+        <option value="venmo">💸 Venmo</option>
       </select>
     </div>
     <div class="card">
@@ -603,6 +615,25 @@ function mapCategory(raw) {
   return CHASE_MAP[raw.trim()] || 'Other';
 }
 
+// Keyword-based categorization (for bank / Venmo which have no Chase category)
+const KEYWORD_RULES = [
+  { re: /trader joe|whole foods|safeway|kroger|publix|wegmans|costco|blinkit|westside market|zabar|hashi|grocery|supermarket|market\b/i, cat: 'Groceries' },
+  { re: /restaurant|cafe|coffee|starbucks|mcdonald|chipotle|subway|pizza|sushi|bagel|deli|bakery|taco|burger|grill|kitchen|dining|doordash|grubhub|ubereats|seamless|gelat|sweet|rivareno|bosphorous|herald|fonty|just salad|maman|yene|banh|mama|sq \*/i, cat: 'Food & Dining' },
+  { re: /\bmta\b|nyct|uber|lyft|taxi|curb|empower\*|transit|metro|train|bus|parking|shell|bp|chevron|exxon|amtrak|airline|delta|united|southwest|hertz|avis|toll|e-zpass/i, cat: 'Travel & Transport' },
+  { re: /amazon|target|walmart|costco|sephora|homegoods|depop|calvin klein|nuuly|tokito|h&m|zara|gap|old navy|nordstrom|tj maxx|marshalls|bestbuy|apple store|etsy/i, cat: 'Shopping' },
+  { re: /netflix|spotify|hulu|disney|hbo|apple.*tv|youtube|cinema|theater|theatre|movie|concert|kydlab|ctlp|peek|selvatura|ticketmaster|stub hub/i, cat: 'Entertainment' },
+  { re: /pharmacy|cvs|walgreens|rite aid|doctor|hospital|clinic|medical|dental|vision|gym|fitness|yoga|pilates|soul cycle|peloton|heatwise|spirit studio/i, cat: 'Health & Wellness' },
+  { re: /electric|gas bill|water bill|internet|verizon|at&t|comcast|spectrum|insurance|rent|mortgage|hoa|utility|annual fee|membership fee/i, cat: 'Bills & Fees' },
+  { re: /venmo|cashapp|zelle|paypal|splitwise/i, cat: 'Personal' },
+];
+
+function categorizeByKeyword(desc) {
+  for (const rule of KEYWORD_RULES) {
+    if (rule.re.test(desc)) return rule.cat;
+  }
+  return 'Other';
+}
+
 // ── Data layer ──────────────────────────────────────────────────────────────
 function loadTxns()     { try { return JSON.parse(localStorage.getItem('et_txns') || '[]'); } catch { return []; } }
 function saveTxns(arr)  { localStorage.setItem('et_txns', JSON.stringify(arr)); }
@@ -634,63 +665,7 @@ function monthLabel(iso) {
   return new Date(+y, +m-1, 1).toLocaleString('default', { month: 'short', year: 'numeric' });
 }
 
-// ── CSV Parser ──────────────────────────────────────────────────────────────
-function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
-
-  // Detect column indices (flexible for different banks)
-  const col = name => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
-
-  const iDate  = col('Transaction Date') !== -1 ? col('Transaction Date') : col('Date');
-  const iDesc  = col('Description');
-  const iCat   = col('Category');
-  const iType  = col('Type');
-  const iAmt   = col('Amount');
-  // Split debit/credit columns (Capital One, BofA)
-  const iDebit  = col('Debit');
-  const iCredit = col('Credit');
-
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const cols = splitCSVLine(line);
-
-    const type = iType !== -1 ? cols[iType]?.trim() : '';
-    // Skip payment rows (credits back to the card)
-    if (type === 'Payment' || type === 'PAYMENT') continue;
-
-    let amount = 0;
-    if (iAmt !== -1) {
-      amount = parseFloat(cols[iAmt]?.replace(/[$,"]/g, '') || '0');
-      // Chase: charges are negative — flip to positive
-      if (amount < 0) amount = Math.abs(amount);
-      else if (amount === 0) continue; // skip zero rows
-    } else if (iDebit !== -1) {
-      const debit  = parseFloat(cols[iDebit]?.replace(/[$,"]/g, '') || '0');
-      if (debit === 0) continue;
-      amount = debit;
-    }
-
-    const rawDate = iDate !== -1 ? cols[iDate]?.trim() : '';
-    const desc    = iDesc !== -1 ? cols[iDesc]?.replace(/^"|"$/g, '').trim() : '';
-    const rawCat  = iCat  !== -1 ? cols[iCat]?.replace(/^"|"$/g, '').trim() : '';
-
-    if (!rawDate || !desc || amount <= 0) continue;
-
-    rows.push({
-      date:         parseDate(rawDate),
-      description:  desc,
-      chaseCategory: rawCat,
-      category:     mapCategory(rawCat),
-      amount:       Math.round(amount * 100) / 100,
-    });
-  }
-  return rows;
-}
-
+// ── CSV Helpers ──────────────────────────────────────────────────────────────
 function splitCSVLine(line) {
   const result = [];
   let cur = '', inQuote = false;
@@ -704,12 +679,274 @@ function splitCSVLine(line) {
   return result;
 }
 
+function clean(s) { return (s || '').replace(/^"|"$/g, '').trim(); }
+
+// ── Format Detection ─────────────────────────────────────────────────────────
+const FORMAT_LABELS = {
+  'chase-credit': { label: '💳 Chase Credit Card', color: '#2563eb' },
+  'chase-bank':   { label: '🏦 Chase Bank / Checking', color: '#16a34a' },
+  'venmo':        { label: '💸 Venmo', color: '#3b6ef5' },
+  'generic':      { label: '📄 Generic Bank CSV', color: '#6b7280' },
+};
+
+function detectFormat(text) {
+  // Find first non-empty line as potential header
+  const lines = text.split(/\r?\n/);
+  const headerLine = lines.find(l => l.trim().length > 0) || '';
+  const h = headerLine.toLowerCase();
+
+  if (h.includes('transaction date') && h.includes('post date') && h.includes('type'))
+    return 'chase-credit';
+  if (h.includes('details') && h.includes('posting date') && h.includes('balance'))
+    return 'chase-bank';
+  if (h.includes('username') && (h.includes('datetime') || h.includes('note')))
+    return 'venmo';
+  // Venmo sometimes has leading comma and metadata rows — scan deeper
+  for (let i = 0; i < Math.min(lines.length, 6); i++) {
+    const l = lines[i].toLowerCase();
+    if (l.includes('username') && l.includes('amount (total)')) return 'venmo';
+  }
+  return 'generic';
+}
+
+// ── Chase Credit Card Parser ─────────────────────────────────────────────────
+// Columns: Transaction Date, Post Date, Description, Category, Type, Amount, Memo
+function parseChaseCreditCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = splitCSVLine(lines[0]).map(clean);
+  const col = name => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+
+  const iDate = col('Transaction Date') !== -1 ? col('Transaction Date') : col('Date');
+  const iDesc = col('Description');
+  const iCat  = col('Category');
+  const iType = col('Type');
+  const iAmt  = col('Amount');
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = splitCSVLine(line);
+
+    const type = iType !== -1 ? clean(cols[iType]) : '';
+    if (type === 'Payment' || type === 'PAYMENT') continue;
+
+    const rawAmt = clean(cols[iAmt] || '');
+    let amount = parseFloat(rawAmt.replace(/[$,]/g, '') || '0');
+    if (amount < 0) amount = Math.abs(amount);
+    if (amount === 0) continue;
+
+    const rawDate = clean(cols[iDate] || '');
+    const desc    = clean(cols[iDesc] || '');
+    const rawCat  = clean(cols[iCat]  || '');
+    if (!rawDate || !desc) continue;
+
+    rows.push({
+      date:          parseDate(rawDate),
+      description:   desc,
+      originalCategory: rawCat,
+      category:      mapCategory(rawCat),
+      amount:        Math.round(amount * 100) / 100,
+    });
+  }
+  return rows;
+}
+
+// ── Chase Bank / Checking Parser ─────────────────────────────────────────────
+// Columns: Details, Posting Date, Description, Amount, Type, Balance, Check or Slip #
+function parseChaseBankCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = splitCSVLine(lines[0]).map(clean);
+  const col = name => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+
+  const iDetails = col('Details');
+  const iDate    = col('Posting Date') !== -1 ? col('Posting Date') : col('Date');
+  const iDesc    = col('Description');
+  const iAmt     = col('Amount');
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = splitCSVLine(line);
+
+    const details = clean(cols[iDetails] || '').toUpperCase();
+    // Only keep debits (outgoing payments)
+    if (details === 'CREDIT' || details === 'DSLIP') continue;
+
+    let amount = parseFloat(clean(cols[iAmt] || '').replace(/[$,]/g, '') || '0');
+    if (amount > 0) continue;  // credits/deposits are positive — skip
+    amount = Math.abs(amount);
+    if (amount === 0) continue;
+
+    const rawDate = clean(cols[iDate] || '');
+    const desc    = clean(cols[iDesc] || '');
+    if (!rawDate || !desc) continue;
+
+    // Skip internal transfers
+    if (/online transfer|zelle to|zelle from|atm withdrawal|deposit/i.test(desc) &&
+        !/purchase|payment to/i.test(desc)) continue;
+
+    rows.push({
+      date:             parseDate(rawDate),
+      description:      desc,
+      originalCategory: '',
+      category:         categorizeByKeyword(desc),
+      amount:           Math.round(amount * 100) / 100,
+    });
+  }
+  return rows;
+}
+
+// ── Venmo Parser ─────────────────────────────────────────────────────────────
+// Venmo exports have metadata rows before the actual header row
+function parseVenmoCSV(text) {
+  const allLines = text.split(/\r?\n/);
+
+  // Find the header row (contains "Username" and "Amount")
+  let headerIdx = -1;
+  for (let i = 0; i < allLines.length; i++) {
+    const l = allLines[i].toLowerCase();
+    if (l.includes('username') && l.includes('amount')) { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) return [];
+
+  const headers = splitCSVLine(allLines[headerIdx]).map(clean);
+  const col = name => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+
+  const iDatetime = col('Datetime');
+  const iType     = col('Type');
+  const iStatus   = col('Status');
+  const iNote     = col('Note');
+  const iFrom     = col('From');
+  const iTo       = col('To');
+  const iAmt      = col('Amount (total)') !== -1 ? col('Amount (total)') : col('Amount');
+
+  const rows = [];
+  for (let i = headerIdx + 1; i < allLines.length; i++) {
+    const line = allLines[i].trim();
+    if (!line) continue;
+    const cols = splitCSVLine(line);
+    if (cols.length < 4) continue;
+
+    const type   = clean(cols[iType]   || '');
+    const status = clean(cols[iStatus] || '');
+
+    // Skip transfers to/from bank and incomplete transactions
+    if (/standard transfer|bank transfer/i.test(type)) continue;
+    if (status && !/complete/i.test(status)) continue;
+
+    // Parse amount — Venmo shows payments as "- $22.50", receipts as "+ $22.50"
+    const rawAmt = clean(cols[iAmt] || '').replace(/\s/g, '');
+    const isPayment = rawAmt.startsWith('-');
+    if (!isPayment) continue;  // skip received payments
+
+    const amount = parseFloat(rawAmt.replace(/[^0-9.]/g, '') || '0');
+    if (amount === 0) continue;
+
+    // Date: "2026-01-15T10:30:00" or "2026-01-15 10:30:00"
+    const rawDate = clean(cols[iDatetime] || '').split(/T| /)[0];
+    if (!rawDate) continue;
+
+    // Description: prefer Note, fall back to "To: <name>"
+    const note = clean(cols[iNote] || '');
+    const toName = clean(cols[iTo] || '');
+    const desc = note || (toName ? `Payment to ${toName}` : 'Venmo payment');
+
+    rows.push({
+      date:             rawDate.length === 10 ? rawDate : parseDate(rawDate),
+      description:      desc,
+      originalCategory: '',
+      category:         categorizeByKeyword(desc + ' ' + toName),
+      amount:           Math.round(amount * 100) / 100,
+    });
+  }
+  return rows;
+}
+
+// ── Generic / Capital One / Citi / BofA Parser ───────────────────────────────
+function parseGenericCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = splitCSVLine(lines[0]).map(clean);
+  const col = name => headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+
+  const iDate  = col('Date');
+  const iDesc  = col('Description') !== -1 ? col('Description') : col('Merchant');
+  const iAmt   = col('Amount');
+  const iDebit = col('Debit');
+  const iCat   = col('Category');
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = splitCSVLine(line);
+
+    let amount = 0;
+    if (iAmt !== -1) {
+      amount = parseFloat(clean(cols[iAmt] || '').replace(/[$,]/g, '') || '0');
+      if (amount < 0) amount = Math.abs(amount);
+      else if (amount === 0) continue;
+    } else if (iDebit !== -1) {
+      amount = parseFloat(clean(cols[iDebit] || '').replace(/[$,]/g, '') || '0');
+      if (amount === 0) continue;
+    }
+
+    const rawDate = clean(cols[iDate] || '');
+    const desc    = clean(cols[iDesc] || '');
+    const rawCat  = iCat !== -1 ? clean(cols[iCat] || '') : '';
+    if (!rawDate || !desc || amount <= 0) continue;
+
+    rows.push({
+      date:             parseDate(rawDate),
+      description:      desc,
+      originalCategory: rawCat,
+      category:         rawCat ? (mapCategory(rawCat) !== 'Other' ? mapCategory(rawCat) : categorizeByKeyword(desc))
+                               : categorizeByKeyword(desc),
+      amount:           Math.round(amount * 100) / 100,
+    });
+  }
+  return rows;
+}
+
+// ── Main entry point ─────────────────────────────────────────────────────────
+function parseStatement(text) {
+  const format = detectFormat(text);
+  switch (format) {
+    case 'chase-credit': return { rows: parseChaseCreditCSV(text), format };
+    case 'chase-bank':   return { rows: parseChaseBankCSV(text),   format };
+    case 'venmo':        return { rows: parseVenmoCSV(text),        format };
+    default:             return { rows: parseGenericCSV(text),      format };
+  }
+}
+
+// sourceType for storage
+const FORMAT_TO_SOURCE = {
+  'chase-credit': 'credit-card',
+  'chase-bank':   'bank',
+  'venmo':        'venmo',
+  'generic':      'credit-card',
+};
+
 // ── Category badge HTML ──────────────────────────────────────────────────────
 function badgeHTML(catName) {
   const c = CAT_BY_NAME[catName] || CAT_BY_NAME['Other'];
   return `<span class="badge" style="background:${c.color}18;color:${c.color}">
     <span class="badge-dot" style="background:${c.color}"></span>${catName}
   </span>`;
+}
+
+const SOURCE_BADGES = {
+  'credit-card': { label: '💳 Credit Card', color: '#2563eb' },
+  'bank':        { label: '🏦 Bank',        color: '#16a34a' },
+  'venmo':       { label: '💸 Venmo',       color: '#3b6ef5' },
+};
+function sourceTypeBadge(type) {
+  const s = SOURCE_BADGES[type] || SOURCE_BADGES['credit-card'];
+  return `<span class="badge" style="background:${s.color}18;color:${s.color}">${s.label}</span>`;
 }
 
 function catSelectHTML(selected) {
@@ -862,9 +1099,10 @@ function renderDashboard() {
 // ── Transactions view ────────────────────────────────────────────────────────
 function renderTransactions() {
   const txns = loadTxns();
-  const search   = document.getElementById('search-input').value.toLowerCase();
-  const monthFil = document.getElementById('filter-month').value;
-  const catFil   = document.getElementById('filter-cat').value;
+  const search     = document.getElementById('search-input').value.toLowerCase();
+  const monthFil   = document.getElementById('filter-month').value;
+  const catFil     = document.getElementById('filter-cat').value;
+  const sourceFil  = document.getElementById('filter-source').value;
 
   // Populate filter dropdowns
   const months = [...new Set(txns.map(t => t.date.slice(0,7)))].sort().reverse();
@@ -879,9 +1117,10 @@ function renderTransactions() {
     CAT_NAMES.map(n => `<option value="${n}" ${n===curC?'selected':''}>${n}</option>`).join('');
 
   let filtered = [...txns].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
-  if (search)   filtered = filtered.filter(t => t.description.toLowerCase().includes(search) || t.category.toLowerCase().includes(search));
-  if (monthFil) filtered = filtered.filter(t => t.date.startsWith(monthFil));
-  if (catFil)   filtered = filtered.filter(t => t.category === catFil);
+  if (search)    filtered = filtered.filter(t => t.description.toLowerCase().includes(search) || t.category.toLowerCase().includes(search));
+  if (monthFil)  filtered = filtered.filter(t => t.date.startsWith(monthFil));
+  if (catFil)    filtered = filtered.filter(t => t.category === catFil);
+  if (sourceFil) filtered = filtered.filter(t => (t.sourceType || 'credit-card') === sourceFil);
 
   document.getElementById('txn-count-label').textContent =
     filtered.length !== txns.length ? `(${filtered.length} of ${txns.length})` : `(${txns.length})`;
@@ -899,7 +1138,7 @@ function renderTransactions() {
       <td class="muted">${fmtDate(t.date)}</td>
       <td>${t.description}</td>
       <td>${badgeHTML(t.category)}</td>
-      <td class="muted" style="font-size:13px">${t.source || '—'}</td>
+      <td>${sourceTypeBadge(t.sourceType)}</td>
       <td class="r amount-cell">${fmt(t.amount)}</td>
       <td><button class="btn btn-ghost btn-sm" data-delete="${t.id}">✕</button></td>
     </tr>`).join('') +
@@ -913,12 +1152,19 @@ function renderTransactions() {
 // ── Import flow ──────────────────────────────────────────────────────────────
 let pendingRows = [];
 
-function showReview(rows, filename) {
+let pendingFormat = 'generic';
+
+function showReview(rows, filename, format) {
   pendingRows = rows;
+  pendingFormat = format;
   document.getElementById('step-upload').style.display = 'none';
   document.getElementById('step-review').style.display = '';
 
   document.getElementById('review-filename').textContent = filename;
+
+  const fmtInfo = FORMAT_LABELS[format] || FORMAT_LABELS['generic'];
+  document.getElementById('review-format-badge').innerHTML =
+    `<span class="badge" style="background:${fmtInfo.color}18;color:${fmtInfo.color};font-size:13px">${fmtInfo.label}</span>`;
 
   const total = rows.reduce((s, r) => s + r.amount, 0);
   const dates = rows.map(r => r.date).sort();
@@ -932,7 +1178,7 @@ function showReview(rows, filename) {
     <td><input type="checkbox" class="row-chk" data-i="${i}" checked></td>
     <td class="muted">${fmtDate(r.date)}</td>
     <td>${r.description}</td>
-    <td class="muted">${r.chaseCategory || '—'}</td>
+    <td class="muted">${r.originalCategory || '—'}</td>
     <td data-i="${i}" class="cat-cell">${catSelectHTML(r.category)}</td>
     <td class="r amount-cell">${fmt(r.amount)}</td>
   </tr>`).join('');
@@ -962,9 +1208,10 @@ function doImport(filename) {
       date:        pendingRows[i].date,
       description: pendingRows[i].description,
       category,
-      chaseCategory: pendingRows[i].chaseCategory,
+      originalCategory: pendingRows[i].originalCategory,
       amount:      pendingRows[i].amount,
       source:      filename,
+      sourceType:  FORMAT_TO_SOURCE[pendingFormat] || 'credit-card',
     });
   });
 
@@ -1010,9 +1257,9 @@ function handleFile(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const rows = parseCSV(e.target.result);
+    const { rows, format } = parseStatement(e.target.result);
     if (rows.length === 0) { showToast('No valid transactions found in this file', true); return; }
-    showReview(rows, file.name);
+    showReview(rows, file.name, format);
   };
   reader.readAsText(file);
 }
@@ -1053,7 +1300,7 @@ document.getElementById('txn-tbody').addEventListener('click', e => {
 });
 
 // Transactions: search/filter
-['search-input','filter-month','filter-cat'].forEach(id => {
+['search-input','filter-month','filter-cat','filter-source'].forEach(id => {
   document.getElementById(id).addEventListener('input', renderTransactions);
 });
 
