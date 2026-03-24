@@ -693,21 +693,19 @@ const FORMAT_LABELS = {
 };
 
 function detectFormat(text) {
-  // Find first non-empty line as potential header
   const lines = text.split(/\r?\n/);
-  const headerLine = lines.find(l => l.trim().length > 0) || '';
-  const h = headerLine.toLowerCase();
+  const scan  = Math.min(lines.length, 20);
 
-  if (h.includes('transaction date') && h.includes('post date') && h.includes('type'))
-    return 'chase-credit';
-  if (h.includes('details') && h.includes('posting date') && h.includes('balance'))
-    return 'chase-bank';
-  if (h.includes('td bank') || h.includes('td beyond checking') || h.includes('tdbank'))
-    return 'td-bank';
-  // Venmo: scan first several lines for the real header (has metadata rows before it)
-  for (let i = 0; i < Math.min(lines.length, 6); i++) {
+  for (let i = 0; i < scan; i++) {
     const l = lines[i].toLowerCase();
-    if (l.includes('datetime') && l.includes('amount (total)')) return 'venmo';
+    if (l.includes('transaction date') && l.includes('post date') && l.includes('type'))
+      return 'chase-credit';
+    if (l.includes('details') && l.includes('posting date') && l.includes('balance'))
+      return 'chase-bank';
+    if (l.includes('td bank') || l.includes('td beyond checking') || l.includes('tdbank.com'))
+      return 'td-bank';
+    if (l.includes('datetime') && l.includes('amount (total)'))
+      return 'venmo';
   }
   return 'generic';
 }
@@ -917,70 +915,79 @@ function parseGenericCSV(text) {
 
 // ── TD Bank PDF Parser ───────────────────────────────────────────────────────
 function parseTDBankPDF(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  // Normalize: collapse multiple spaces/newlines inside each line
+  const normalized = text.replace(/\r\n/g, '\n');
 
-  // Extract statement period to resolve year for each transaction
-  // e.g. "Statement Period: Dec 12 2025-Jan 11 2026"
-  let startMonth = 1, startYear = new Date().getFullYear();
-  let endMonth = 12,  endYear  = startYear;
-  const periodRe = /Statement Period[:\s]+(\w+)\s+\d+\s+(\d{4})[-–](\w+)\s+\d+\s+(\d{4})/i;
-  const periodMatch = text.match(periodRe);
+  // Resolve year from statement period: "Statement Period: Dec 12 2025-Jan 11 2026"
+  let startMonth = 1, startYear = new Date().getFullYear(), endYear = startYear;
+  const mn = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const periodMatch = normalized.match(
+    /Statement\s+Period[:\s]+(\w+)\s+\d+\s+(\d{4})\s*[-–]\s*(\w+)\s+\d+\s+(\d{4})/i
+  );
   if (periodMatch) {
-    const mn = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
     startMonth = mn.indexOf(periodMatch[1].toLowerCase().slice(0,3)) + 1 || 1;
     startYear  = parseInt(periodMatch[2]);
-    endMonth   = mn.indexOf(periodMatch[3].toLowerCase().slice(0,3)) + 1 || 12;
     endYear    = parseInt(periodMatch[4]);
   }
-
-  function resolveYear(month) {
-    // If statement spans a year boundary, assign year by which side of the boundary month falls on
+  function resolveYear(mo) {
     if (startYear === endYear) return startYear;
-    return month >= startMonth ? startYear : endYear;
+    return mo >= startMonth ? startYear : endYear;
   }
 
-  // Sections we want: "Electronic Payments" (and its "continued" pages)
-  // Skip: Deposits, Electronic Deposits, Other Credits, Daily Balance Summary
-  const SKIP_SECTIONS = /^(deposits|electronic deposits|other credits|daily balance|subtotal|ending balance|beginning balance|average collected)/i;
-  const PAYMENT_SECTION = /electronic payments/i;
-  const HEADER_ROW = /posting date|description|amount/i;
+  // Split on every "Electronic Payments" heading (incl. "(continued)")
+  // and collect the text blocks between each heading and the next section boundary
+  const blocks = [];
+  const headingRe = /electronic\s+payments(?:\s*\(continued\))?/gi;
+  const boundaryRe = /subtotal\s*:|daily\s+balance|^deposits\b|electronic\s+deposits|other\s+credits/im;
 
-  let inPayments = false;
+  let m;
+  while ((m = headingRe.exec(normalized)) !== null) {
+    const after = normalized.slice(m.index + m[0].length);
+    const boundary = after.search(boundaryRe);
+    blocks.push(boundary !== -1 ? after.slice(0, boundary) : after.slice(0, 3000));
+  }
+
+  // Fallback: no headings found (extraction produced flat text) — search everything
+  if (blocks.length === 0) blocks.push(normalized);
+
   const rows = [];
+  const seen = new Set();
 
-  for (const line of lines) {
-    if (PAYMENT_SECTION.test(line))  { inPayments = true;  continue; }
-    if (SKIP_SECTIONS.test(line))    { inPayments = false; continue; }
-    if (!inPayments || HEADER_ROW.test(line)) continue;
+  for (const block of blocks) {
+    // Match: MM/DD  DESCRIPTION  AMOUNT  (multiline, $ = end of line)
+    // The description can contain anything except a newline
+    const txnRe = /^(\d{1,2}\/\d{2})\s+(.+?)\s+([\d]{1,3}(?:,\d{3})*\.\d{2})\s*$/gm;
+    let t;
+    while ((t = txnRe.exec(block)) !== null) {
+      const [, dateStr, rawDesc, amtStr] = t;
 
-    // Transaction line: MM/DD  DESCRIPTION  AMOUNT
-    // Amount may have commas: 2,159.56
-    const m = line.match(/^(\d{1,2}\/\d{1,2})\s+(.+?)\s+([\d,]+\.\d{2})$/);
-    if (!m) continue;
+      // Skip column-header lines
+      if (/posting\s+date|description|amount/i.test(rawDesc)) continue;
 
-    const [, dateStr, rawDesc, amtStr] = m;
-    const [mo, dy] = dateStr.split('/').map(Number);
-    const year   = resolveYear(mo);
-    const date   = `${year}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
-    const amount = parseFloat(amtStr.replace(/,/g, ''));
+      const [mo, dy] = dateStr.split('/').map(Number);
+      const year   = resolveYear(mo);
+      const date   = `${year}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;
+      const amount = parseFloat(amtStr.replace(/,/g, ''));
+      const desc   = rawDesc.replace(/\s+\*{4}\S+\s*$/, '').trim();
 
-    // Clean up description: strip trailing account number masks (****XXXX)
-    const desc = rawDesc.replace(/\s+\*{4}\S+$/, '').trim();
+      const key = `${date}|${desc}|${amount}`;
+      if (seen.has(key) || amount <= 0) continue;
+      seen.add(key);
 
-    rows.push({
-      date,
-      description:      desc,
-      originalCategory: '',
-      category:         categorizeByKeyword(desc),
-      amount:           Math.round(amount * 100) / 100,
-    });
+      rows.push({
+        date,
+        description:      desc,
+        originalCategory: '',
+        category:         categorizeByKeyword(desc),
+        amount:           Math.round(amount * 100) / 100,
+      });
+    }
   }
   return rows;
 }
 
 // ── PDF Text Extraction (PDF.js) ─────────────────────────────────────────────
 async function extractPDFText(arrayBuffer) {
-  // Set worker source (CDN)
   if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js not loaded — check your internet connection.');
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
@@ -992,20 +999,27 @@ async function extractPDFText(arrayBuffer) {
     const page    = await pdf.getPage(p);
     const content = await page.getTextContent();
 
-    // Group text items by their y-position (rounded) to reconstruct lines
-    const byY = new Map();
-    for (const item of content.items) {
-      if (!item.str.trim()) continue;
-      const y = Math.round(item.transform[5]);
-      if (!byY.has(y)) byY.set(y, []);
-      byY.get(y).push({ x: item.transform[4], str: item.str });
+    // Extract non-empty items, sorted by y descending (top→bottom)
+    const items = content.items
+      .filter(i => i.str && i.str.trim())
+      .map(i => ({ x: i.transform[4], y: i.transform[5], str: i.str }))
+      .sort((a, b) => b.y - a.y);
+
+    // Group into visual rows using a 4-point threshold (handles sub-pixel y jitter)
+    const groups = [];
+    for (const item of items) {
+      const last = groups[groups.length - 1];
+      if (last && Math.abs(item.y - last.y) <= 4) {
+        last.items.push(item);
+      } else {
+        groups.push({ y: item.y, items: [item] });
+      }
     }
 
-    // Sort rows top→bottom, items left→right within each row
-    const ys = [...byY.keys()].sort((a, b) => b - a);
-    for (const y of ys) {
-      const rowText = byY.get(y).sort((a, b) => a.x - b.x).map(i => i.str).join(' ');
-      fullText += rowText + '\n';
+    // Sort each row left→right, join with a space, emit as a line
+    for (const g of groups) {
+      const line = g.items.sort((a, b) => a.x - b.x).map(i => i.str).join(' ');
+      fullText += line + '\n';
     }
   }
   return fullText;
