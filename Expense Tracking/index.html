@@ -25,6 +25,7 @@
 
       /* Category colors */
       --food:    #f97316;
+      --grocery: #84cc16;
       --travel:  #3b82f6;
       --shop:    #a855f7;
       --enter:   #eab308;
@@ -562,6 +563,7 @@
 // ── Categories ──────────────────────────────────────────────────────────────
 const CATEGORIES = [
   { name: 'Food & Dining',      color: '#f97316', key: 'food'    },
+  { name: 'Groceries',          color: '#84cc16', key: 'grocery' },
   { name: 'Travel & Transport', color: '#3b82f6', key: 'travel'  },
   { name: 'Shopping',           color: '#a855f7', key: 'shop'    },
   { name: 'Entertainment',      color: '#eab308', key: 'enter'   },
@@ -576,7 +578,7 @@ const CAT_BY_NAME = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
 // Chase → App category mapping
 const CHASE_MAP = {
   'Food & Drink':        'Food & Dining',
-  'Groceries':           'Food & Dining',
+  'Groceries':           'Groceries',
   'Restaurants':         'Food & Dining',
   'Travel':              'Travel & Transport',
   'Gas':                 'Travel & Transport',
