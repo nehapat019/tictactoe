@@ -365,6 +365,79 @@
     .flex-end { display: flex; justify-content: flex-end; gap: 8px; }
     .total-row td { font-weight: 700; border-top: 2px solid var(--border) !important; }
 
+    /* ── Income & Budget Section ────────────────────────────────────────── */
+    .income-input-row {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    }
+    .income-prefix { font-size: 24px; font-weight: 600; color: var(--text-2); }
+    .income-input {
+      font-size: 28px; font-weight: 700; color: var(--text);
+      border: none; border-bottom: 2px solid var(--border);
+      outline: none; width: 180px; background: transparent;
+      letter-spacing: -1px; transition: border-color .15s;
+    }
+    .income-input:focus { border-color: var(--primary); }
+    .income-hint { font-size: 12px; color: var(--text-3); }
+
+    /* Goal rows */
+    .goal-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .goal-label { display: flex; align-items: center; gap: 8px; min-width: 70px; font-size: 14px; font-weight: 600; }
+    .goal-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .needs-dot { background: #10b981; }
+    .wants-dot { background: #f97316; }
+    .goal-slider-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 160px; }
+    .goal-slider { flex: 1; cursor: pointer; }
+    .needs-slider { accent-color: #10b981; }
+    .wants-slider { accent-color: #f97316; }
+    .goal-pct-input {
+      width: 52px; padding: 4px 6px; border: 1px solid var(--border);
+      border-radius: 6px; font-size: 14px; font-weight: 600;
+      text-align: center; outline: none; background: var(--bg);
+      transition: border-color .15s;
+    }
+    .goal-pct-input:focus { border-color: var(--primary); }
+    .savings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+      font-size: 13px; color: var(--text-2);
+    }
+    .savings-pct { font-weight: 700; font-size: 15px; color: var(--success); }
+    .savings-pct.negative { color: var(--danger); }
+
+    /* Budget progress bars */
+    .budget-progress-wrap { margin-bottom: 14px; }
+    .budget-bar-bg {
+      height: 10px; background: var(--bg);
+      border-radius: 99px; overflow: hidden; margin-bottom: 6px;
+    }
+    .budget-bar {
+      height: 100%; border-radius: 99px;
+      transition: width .4s ease; max-width: 100%;
+    }
+    .budget-bar.ok   { background: var(--success); }
+    .budget-bar.warn { background: var(--warning); }
+    .budget-bar.over { background: var(--danger); }
+    .budget-labels {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: var(--text-2);
+    }
+
+    /* Needs/Wants category breakdown */
+    .nw-cat-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .nw-cat-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .nw-cat-name { flex: 1; }
+    .nw-cat-amt { font-weight: 600; min-width: 70px; text-align: right; }
+
+    /* Status badges */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    }
+    .status-badge.on-track { background: #dcfce7; color: #166534; }
+    .status-badge.warning  { background: #fef9c3; color: #854d0e; }
+    .status-badge.over-budget { background: #fee2e2; color: #991b1b; }
+    .status-badge.no-data  { background: var(--bg); color: var(--text-2); }
+
     @media (max-width: 720px) {
       .grid-2, .grid-2-1 { grid-template-columns: 1fr; }
       .stat-grid { grid-template-columns: 1fr 1fr; }
@@ -394,6 +467,105 @@
   <!-- ── Dashboard ─────────────────────────────────────────────────────────── -->
   <div class="view active" id="view-dashboard">
     <div class="stat-grid" id="stat-grid"></div>
+
+    <!-- ── Budget & Goals Section ──────────────────────────────────────────── -->
+    <div id="budget-section" style="display:none">
+      <div class="grid-2" style="margin-bottom:24px">
+        <!-- Monthly Net Income -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Monthly Net Income</div>
+              <div class="card-sub">After taxes, 401k &amp; market contributions</div>
+            </div>
+            <span id="income-month-label" style="font-size:13px;color:var(--text-2);font-weight:500"></span>
+          </div>
+          <div class="card-body">
+            <div class="income-input-row">
+              <span class="income-prefix">$</span>
+              <input type="number" id="income-input" class="income-input" placeholder="0" min="0" step="100">
+            </div>
+            <p class="income-hint">Update each month to track your budget goals</p>
+          </div>
+        </div>
+        <!-- Spending Goals -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Spending Goals</div>
+              <div class="card-sub">% of monthly net income</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="goal-row">
+              <div class="goal-label"><span class="goal-dot needs-dot"></span> Needs</div>
+              <div class="goal-slider-wrap">
+                <input type="range" id="needs-pct-slider" min="0" max="100" value="50" class="goal-slider needs-slider">
+                <input type="number" id="needs-pct-input" min="0" max="100" value="50" class="goal-pct-input">
+                <span style="font-size:13px;color:var(--text-2)">%</span>
+              </div>
+            </div>
+            <p style="font-size:12px;color:var(--text-3);margin:3px 0 12px 18px">Rent, utilities, groceries, health</p>
+            <div class="goal-row">
+              <div class="goal-label"><span class="goal-dot wants-dot"></span> Wants</div>
+              <div class="goal-slider-wrap">
+                <input type="range" id="wants-pct-slider" min="0" max="100" value="30" class="goal-slider wants-slider">
+                <input type="number" id="wants-pct-input" min="0" max="100" value="30" class="goal-pct-input">
+                <span style="font-size:13px;color:var(--text-2)">%</span>
+              </div>
+            </div>
+            <p style="font-size:12px;color:var(--text-3);margin:3px 0 0 18px">Dining, shopping, entertainment, travel</p>
+            <div class="savings-row">
+              <span>Savings &amp; other</span>
+              <span id="savings-pct-display" class="savings-pct">20%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Needs vs Wants Progress -->
+      <div class="grid-2" style="margin-bottom:24px">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Needs</div>
+              <div class="card-sub">Groceries · Bills &amp; Utilities · Health</div>
+            </div>
+            <span id="needs-status-badge"></span>
+          </div>
+          <div class="card-body">
+            <div class="budget-progress-wrap">
+              <div class="budget-bar-bg"><div class="budget-bar ok" id="needs-bar" style="width:0%"></div></div>
+              <div class="budget-labels">
+                <span id="needs-spent-label"></span>
+                <span id="needs-goal-label"></span>
+              </div>
+            </div>
+            <div class="nw-cat-list" id="needs-cats-breakdown"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Wants</div>
+              <div class="card-sub">Dining · Shopping · Entertainment · Travel</div>
+            </div>
+            <span id="wants-status-badge"></span>
+          </div>
+          <div class="card-body">
+            <div class="budget-progress-wrap">
+              <div class="budget-bar-bg"><div class="budget-bar ok" id="wants-bar" style="width:0%"></div></div>
+              <div class="budget-labels">
+                <span id="wants-spent-label"></span>
+                <span id="wants-goal-label"></span>
+              </div>
+            </div>
+            <div class="nw-cat-list" id="wants-cats-breakdown"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ── End Budget Section ───────────────────────────────────────────────── -->
 
     <div class="grid-2">
       <!-- Monthly trend -->
@@ -589,6 +761,10 @@ const CATEGORIES = [
 const CAT_NAMES   = CATEGORIES.map(c => c.name);
 const CAT_BY_NAME = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
 
+// Needs vs Wants classification
+const NEEDS_CATS = new Set(['Groceries', 'Bills & Fees', 'Health & Wellness']);
+const WANTS_CATS = new Set(['Food & Dining', 'Travel & Transport', 'Shopping', 'Entertainment', 'Personal', 'Other']);
+
 // Chase → App category mapping
 const CHASE_MAP = {
   'Food & Drink':        'Food & Dining',
@@ -639,6 +815,17 @@ function categorizeByKeyword(desc) {
 // ── Data layer ──────────────────────────────────────────────────────────────
 function loadTxns()     { try { return JSON.parse(localStorage.getItem('et_txns') || '[]'); } catch { return []; } }
 function saveTxns(arr)  { localStorage.setItem('et_txns', JSON.stringify(arr)); }
+
+// Income stored per month: { "2026-03": 5000, ... }
+function loadIncome() { try { return JSON.parse(localStorage.getItem('et_income') || '{}'); } catch { return {}; } }
+function saveIncome(obj) { localStorage.setItem('et_income', JSON.stringify(obj)); }
+
+// Goals: { needs: 50, wants: 30 }  (percentages)
+function loadGoals() {
+  try { const g = JSON.parse(localStorage.getItem('et_goals') || '{}'); return { needs: g.needs ?? 50, wants: g.wants ?? 30 }; }
+  catch { return { needs: 50, wants: 30 }; }
+}
+function saveGoals(obj) { localStorage.setItem('et_goals', JSON.stringify(obj)); }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const fmt = n => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1157,12 +1344,113 @@ function renderCharts(txns) {
   }).join('');
 }
 
+// ── Budget Section ────────────────────────────────────────────────────────────
+function renderBudgetSection(txns) {
+  const now    = new Date();
+  const thisYM = now.toISOString().slice(0, 7);
+
+  document.getElementById('budget-section').style.display = txns.length ? '' : 'none';
+  if (!txns.length) return;
+
+  // Income for current month
+  const incomeMap   = loadIncome();
+  const income      = incomeMap[thisYM] || 0;
+  const incomeInput = document.getElementById('income-input');
+  if (document.activeElement !== incomeInput) incomeInput.value = income || '';
+  document.getElementById('income-month-label').textContent =
+    now.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  // Goals
+  const goals = loadGoals();
+  if (document.activeElement !== document.getElementById('needs-pct-input') &&
+      document.activeElement !== document.getElementById('needs-pct-slider')) {
+    document.getElementById('needs-pct-slider').value = goals.needs;
+    document.getElementById('needs-pct-input').value  = goals.needs;
+  }
+  if (document.activeElement !== document.getElementById('wants-pct-input') &&
+      document.activeElement !== document.getElementById('wants-pct-slider')) {
+    document.getElementById('wants-pct-slider').value = goals.wants;
+    document.getElementById('wants-pct-input').value  = goals.wants;
+  }
+  const savingsPct = Math.max(0, 100 - goals.needs - goals.wants);
+  const savingsEl  = document.getElementById('savings-pct-display');
+  savingsEl.textContent = savingsPct + '%';
+  savingsEl.className   = 'savings-pct' + (goals.needs + goals.wants > 100 ? ' negative' : '');
+
+  // This month's spending
+  const thisMoTxns  = txns.filter(t => t.date.startsWith(thisYM));
+  const needsSpent  = thisMoTxns.filter(t => NEEDS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
+  const wantsSpent  = thisMoTxns.filter(t => WANTS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
+  const needsGoal   = income * goals.needs / 100;
+  const wantsGoal   = income * goals.wants / 100;
+
+  function updateBar(barId, spentLblId, goalLblId, badgeId, spent, goalAmt) {
+    const bar      = document.getElementById(barId);
+    const spentLbl = document.getElementById(spentLblId);
+    const goalLbl  = document.getElementById(goalLblId);
+    const badge    = document.getElementById(badgeId);
+
+    spentLbl.textContent = fmt(spent) + ' spent';
+
+    if (!income) {
+      bar.style.width = '0%';
+      bar.className   = 'budget-bar ok';
+      goalLbl.textContent = 'Set income above to see goal';
+      badge.innerHTML = `<span class="status-badge no-data">No income set</span>`;
+      return;
+    }
+
+    const pct  = goalAmt > 0 ? Math.min(spent / goalAmt * 100, 100) : 0;
+    const over = spent > goalAmt && goalAmt > 0;
+    const warn = !over && goalAmt > 0 && spent / goalAmt >= 0.8;
+
+    bar.style.width = pct.toFixed(1) + '%';
+    bar.className   = 'budget-bar ' + (over ? 'over' : warn ? 'warn' : 'ok');
+    goalLbl.textContent = 'Goal: ' + fmt(goalAmt);
+
+    const remaining = goalAmt - spent;
+    if (over) {
+      badge.innerHTML = `<span class="status-badge over-budget">Over by ${fmt(Math.abs(remaining))}</span>`;
+    } else if (warn) {
+      badge.innerHTML = `<span class="status-badge warning">${fmt(remaining)} left</span>`;
+    } else {
+      badge.innerHTML = `<span class="status-badge on-track">${fmt(remaining)} left</span>`;
+    }
+  }
+
+  updateBar('needs-bar', 'needs-spent-label', 'needs-goal-label', 'needs-status-badge', needsSpent, needsGoal);
+  updateBar('wants-bar', 'wants-spent-label', 'wants-goal-label', 'wants-status-badge', wantsSpent, wantsGoal);
+
+  // Per-category breakdown
+  function renderCatBreakdown(containerId, catSet) {
+    const catTotals = {};
+    thisMoTxns.forEach(t => {
+      if (catSet.has(t.category)) catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
+    });
+    const sorted = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+    document.getElementById(containerId).innerHTML = sorted.length
+      ? sorted.map(([name, val]) => {
+          const c = CAT_BY_NAME[name] || CAT_BY_NAME['Other'];
+          return `<div class="nw-cat-row">
+            <div class="cat-dot" style="background:${c.color}"></div>
+            <div class="nw-cat-name">${name}</div>
+            <div class="nw-cat-amt">${fmt(val)}</div>
+          </div>`;
+        }).join('')
+      : `<div style="font-size:13px;color:var(--text-3)">No spending this month</div>`;
+  }
+
+  renderCatBreakdown('needs-cats-breakdown', NEEDS_CATS);
+  renderCatBreakdown('wants-cats-breakdown', WANTS_CATS);
+}
+
 // ── Dashboard ────────────────────────────────────────────────────────────────
 function renderDashboard() {
   const txns = loadTxns();
   const isEmpty = txns.length === 0;
 
   document.getElementById('dashboard-empty').style.display = isEmpty ? '' : 'none';
+  document.getElementById('budget-section').style.display  = isEmpty ? 'none' : '';
   ['stat-grid','chart-bar','chart-donut','cat-legend','recent-table'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.tagName !== 'CANVAS') el.style.display = isEmpty ? 'none' : '';
@@ -1195,6 +1483,7 @@ function renderDashboard() {
   </div>`).join('');
 
   renderCharts(txns);
+  renderBudgetSection(txns);
 
   // Recent 10
   const recent = [...txns].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 10);
@@ -1476,6 +1765,42 @@ function showToast(msg, isError = false) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
 }
+
+// ── Income & Goals events ─────────────────────────────────────────────────────
+document.getElementById('income-input').addEventListener('change', () => {
+  const val  = parseFloat(document.getElementById('income-input').value) || 0;
+  const ym   = new Date().toISOString().slice(0, 7);
+  const map  = loadIncome();
+  map[ym]    = val;
+  saveIncome(map);
+  renderBudgetSection(loadTxns());
+});
+
+function syncGoals() {
+  const needs = Math.min(100, Math.max(0, parseInt(document.getElementById('needs-pct-input').value) || 0));
+  const wants = Math.min(100, Math.max(0, parseInt(document.getElementById('wants-pct-input').value) || 0));
+  document.getElementById('needs-pct-slider').value = needs;
+  document.getElementById('needs-pct-input').value  = needs;
+  document.getElementById('wants-pct-slider').value = wants;
+  document.getElementById('wants-pct-input').value  = wants;
+  const savings  = Math.max(0, 100 - needs - wants);
+  const savingsEl = document.getElementById('savings-pct-display');
+  savingsEl.textContent = savings + '%';
+  savingsEl.className   = 'savings-pct' + (needs + wants > 100 ? ' negative' : '');
+  saveGoals({ needs, wants });
+  renderBudgetSection(loadTxns());
+}
+
+document.getElementById('needs-pct-slider').addEventListener('input', e => {
+  document.getElementById('needs-pct-input').value = e.target.value;
+  syncGoals();
+});
+document.getElementById('wants-pct-slider').addEventListener('input', e => {
+  document.getElementById('wants-pct-input').value = e.target.value;
+  syncGoals();
+});
+document.getElementById('needs-pct-input').addEventListener('change', syncGoals);
+document.getElementById('wants-pct-input').addEventListener('change', syncGoals);
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderDashboard();
