@@ -438,6 +438,41 @@
     .status-badge.over-budget { background: #fee2e2; color: #991b1b; }
     .status-badge.no-data  { background: var(--bg); color: var(--text-2); }
 
+    /* ── Goal table (income card) ──────────────────────────────────────── */
+    .goal-table-wrap { margin-top: 14px; }
+    .goal-table-head {
+      display: grid;
+      grid-template-columns: 130px 1fr 80px 80px;
+      gap: 8px;
+      padding: 0 0 8px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .4px; color: var(--text-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .goal-table-row {
+      display: grid;
+      grid-template-columns: 130px 1fr 80px 80px;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .goal-table-label { display: flex; flex-direction: column; gap: 2px; }
+    .goal-table-label-name {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600;
+    }
+    .goal-table-label-sub { font-size: 11px; color: var(--text-3); padding-left: 16px; }
+    .goal-slider-col { display: flex; align-items: center; gap: 6px; }
+    .goal-slider-col .goal-slider { flex: 1; }
+    .goal-dollar { font-size: 13px; font-weight: 600; text-align: right; }
+    .goal-dollar.muted { color: var(--text-2); font-weight: 400; }
+    .goal-total-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 10px; padding-top: 8px;
+      font-size: 13px; color: var(--text-2);
+    }
+
     /* ── Dashboard sections ───────────────────────────────────────────── */
     .section-heading {
       font-size: 19px; font-weight: 700; letter-spacing: -.3px;
@@ -525,28 +560,72 @@
               <input type="number" id="income-input" class="income-input" placeholder="0" min="0" step="100">
             </div>
             <p class="income-hint">Monthly net income (post taxes, 401k &amp; market)</p>
-            <hr style="margin:14px 0 12px">
-            <div class="goal-row">
-              <div class="goal-label"><span class="goal-dot needs-dot"></span> Needs</div>
-              <div class="goal-slider-wrap">
-                <input type="range" id="needs-pct-slider" min="0" max="100" value="50" class="goal-slider needs-slider">
-                <input type="number" id="needs-pct-input" min="0" max="100" value="50" class="goal-pct-input">
-                <span style="font-size:13px;color:var(--text-2)">%</span>
+
+            <div class="goal-table-wrap">
+              <!-- Header -->
+              <div class="goal-table-head">
+                <span></span>
+                <span>% Goal</span>
+                <span style="text-align:right">$ Goal</span>
+                <span style="text-align:right">$ Spent</span>
               </div>
-            </div>
-            <p style="font-size:12px;color:var(--text-3);margin:3px 0 12px 18px">Rent, utilities, groceries, health</p>
-            <div class="goal-row">
-              <div class="goal-label"><span class="goal-dot wants-dot"></span> Wants</div>
-              <div class="goal-slider-wrap">
-                <input type="range" id="wants-pct-slider" min="0" max="100" value="30" class="goal-slider wants-slider">
-                <input type="number" id="wants-pct-input" min="0" max="100" value="30" class="goal-pct-input">
-                <span style="font-size:13px;color:var(--text-2)">%</span>
+
+              <!-- Needs row -->
+              <div class="goal-table-row">
+                <div class="goal-table-label">
+                  <div class="goal-table-label-name">
+                    <span class="goal-dot needs-dot"></span> Needs
+                  </div>
+                  <div class="goal-table-label-sub">Groceries · Bills · Health</div>
+                </div>
+                <div class="goal-slider-col">
+                  <input type="range" id="needs-pct-slider" min="0" max="100" value="50" class="goal-slider needs-slider">
+                  <input type="number" id="needs-pct-input" min="0" max="100" value="50" class="goal-pct-input">
+                  <span style="font-size:12px;color:var(--text-2)">%</span>
+                </div>
+                <div class="goal-dollar" id="needs-goal-dollar">—</div>
+                <div class="goal-dollar" id="needs-spent-dollar">—</div>
               </div>
-            </div>
-            <p style="font-size:12px;color:var(--text-3);margin:3px 0 0 18px">Dining, shopping, entertainment, travel</p>
-            <div class="savings-row">
-              <span>Savings &amp; other</span>
-              <span id="savings-pct-display" class="savings-pct">20%</span>
+
+              <!-- Wants row -->
+              <div class="goal-table-row">
+                <div class="goal-table-label">
+                  <div class="goal-table-label-name">
+                    <span class="goal-dot wants-dot"></span> Wants
+                  </div>
+                  <div class="goal-table-label-sub">Dining · Shopping · Travel</div>
+                </div>
+                <div class="goal-slider-col">
+                  <input type="range" id="wants-pct-slider" min="0" max="100" value="30" class="goal-slider wants-slider">
+                  <input type="number" id="wants-pct-input" min="0" max="100" value="30" class="goal-pct-input">
+                  <span style="font-size:12px;color:var(--text-2)">%</span>
+                </div>
+                <div class="goal-dollar" id="wants-goal-dollar">—</div>
+                <div class="goal-dollar" id="wants-spent-dollar">—</div>
+              </div>
+
+              <!-- Rainy Day Savings row -->
+              <div class="goal-table-row">
+                <div class="goal-table-label">
+                  <div class="goal-table-label-name">
+                    <span class="goal-dot" style="background:#6366f1"></span> Rainy Day
+                  </div>
+                  <div class="goal-table-label-sub">Savings goal</div>
+                </div>
+                <div class="goal-slider-col">
+                  <input type="range" id="savings-pct-slider" min="0" max="100" value="20" class="goal-slider" style="accent-color:#6366f1">
+                  <input type="number" id="savings-pct-input" min="0" max="100" value="20" class="goal-pct-input">
+                  <span style="font-size:12px;color:var(--text-2)">%</span>
+                </div>
+                <div class="goal-dollar" id="savings-goal-dollar">—</div>
+                <div class="goal-dollar muted">—</div>
+              </div>
+
+              <!-- Total allocated -->
+              <div class="goal-total-row">
+                <span>Total allocated</span>
+                <span id="savings-pct-display" class="savings-pct">100%</span>
+              </div>
             </div>
           </div>
         </div>
@@ -867,10 +946,10 @@ function saveTxns(arr)  { localStorage.setItem('et_txns', JSON.stringify(arr)); 
 function loadIncome() { try { return JSON.parse(localStorage.getItem('et_income') || '{}'); } catch { return {}; } }
 function saveIncome(obj) { localStorage.setItem('et_income', JSON.stringify(obj)); }
 
-// Goals: { needs: 50, wants: 30 }  (percentages)
+// Goals: { needs: 50, wants: 30, savings: 20 }  (percentages)
 function loadGoals() {
-  try { const g = JSON.parse(localStorage.getItem('et_goals') || '{}'); return { needs: g.needs ?? 50, wants: g.wants ?? 30 }; }
-  catch { return { needs: 50, wants: 30 }; }
+  try { const g = JSON.parse(localStorage.getItem('et_goals') || '{}'); return { needs: g.needs ?? 50, wants: g.wants ?? 30, savings: g.savings ?? 20 }; }
+  catch { return { needs: 50, wants: 30, savings: 20 }; }
 }
 function saveGoals(obj) { localStorage.setItem('et_goals', JSON.stringify(obj)); }
 
@@ -1563,10 +1642,15 @@ function renderBudgetSection(txns) {
     document.getElementById('wants-pct-slider').value = goals.wants;
     document.getElementById('wants-pct-input').value  = goals.wants;
   }
-  const savingsPct = Math.max(0, 100 - goals.needs - goals.wants);
+  if (document.activeElement !== document.getElementById('savings-pct-input') &&
+      document.activeElement !== document.getElementById('savings-pct-slider')) {
+    document.getElementById('savings-pct-slider').value = goals.savings;
+    document.getElementById('savings-pct-input').value  = goals.savings;
+  }
+  const totalAllocated = goals.needs + goals.wants + goals.savings;
   const savingsEl  = document.getElementById('savings-pct-display');
-  savingsEl.textContent = savingsPct + '%';
-  savingsEl.className   = 'savings-pct' + (goals.needs + goals.wants > 100 ? ' negative' : '');
+  savingsEl.textContent = totalAllocated + '%';
+  savingsEl.className   = 'savings-pct' + (totalAllocated > 100 ? ' negative' : '');
 
   // This month's spending
   const thisMoTxns  = txns.filter(t => t.date.startsWith(thisYM));
@@ -1574,6 +1658,15 @@ function renderBudgetSection(txns) {
   const wantsSpent  = thisMoTxns.filter(t => WANTS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
   const needsGoal   = income * goals.needs / 100;
   const wantsGoal   = income * goals.wants / 100;
+  const savingsGoal = income * goals.savings / 100;
+
+  // Populate goal table dollar columns
+  const gd = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  gd('needs-goal-dollar',   income ? fmt(needsGoal)   : '—');
+  gd('needs-spent-dollar',  fmt(needsSpent));
+  gd('wants-goal-dollar',   income ? fmt(wantsGoal)   : '—');
+  gd('wants-spent-dollar',  fmt(wantsSpent));
+  gd('savings-goal-dollar', income ? fmt(savingsGoal) : '—');
 
   function updateBar(barId, spentLblId, goalLblId, badgeId, spent, goalAmt) {
     const bar      = document.getElementById(barId);
@@ -1951,17 +2044,17 @@ document.getElementById('income-input').addEventListener('change', () => {
 });
 
 function syncGoals() {
-  const needs = Math.min(100, Math.max(0, parseInt(document.getElementById('needs-pct-input').value) || 0));
-  const wants = Math.min(100, Math.max(0, parseInt(document.getElementById('wants-pct-input').value) || 0));
-  document.getElementById('needs-pct-slider').value = needs;
-  document.getElementById('needs-pct-input').value  = needs;
-  document.getElementById('wants-pct-slider').value = wants;
-  document.getElementById('wants-pct-input').value  = wants;
-  const savings  = Math.max(0, 100 - needs - wants);
-  const savingsEl = document.getElementById('savings-pct-display');
-  savingsEl.textContent = savings + '%';
-  savingsEl.className   = 'savings-pct' + (needs + wants > 100 ? ' negative' : '');
-  saveGoals({ needs, wants });
+  const clamp = v => Math.min(100, Math.max(0, parseInt(v) || 0));
+  const needs   = clamp(document.getElementById('needs-pct-input').value);
+  const wants   = clamp(document.getElementById('wants-pct-input').value);
+  const savings = clamp(document.getElementById('savings-pct-input').value);
+  document.getElementById('needs-pct-slider').value   = needs;
+  document.getElementById('needs-pct-input').value    = needs;
+  document.getElementById('wants-pct-slider').value   = wants;
+  document.getElementById('wants-pct-input').value    = wants;
+  document.getElementById('savings-pct-slider').value = savings;
+  document.getElementById('savings-pct-input').value  = savings;
+  saveGoals({ needs, wants, savings });
   renderBudgetSection(loadTxns());
 }
 
@@ -1973,8 +2066,13 @@ document.getElementById('wants-pct-slider').addEventListener('input', e => {
   document.getElementById('wants-pct-input').value = e.target.value;
   syncGoals();
 });
+document.getElementById('savings-pct-slider').addEventListener('input', e => {
+  document.getElementById('savings-pct-input').value = e.target.value;
+  syncGoals();
+});
 document.getElementById('needs-pct-input').addEventListener('change', syncGoals);
 document.getElementById('wants-pct-input').addEventListener('change', syncGoals);
+document.getElementById('savings-pct-input').addEventListener('change', syncGoals);
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 renderDashboard();
