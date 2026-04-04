@@ -1626,65 +1626,6 @@ function renderBudgetSection(txns) {
   gd('wants-spent-dollar',  fmt(wantsSpent));
   gd('savings-goal-dollar', income ? fmt(savingsGoal) : '—');
 
-  function updateBar(barId, spentLblId, goalLblId, badgeId, spent, goalAmt) {
-    const bar      = document.getElementById(barId);
-    const spentLbl = document.getElementById(spentLblId);
-    const goalLbl  = document.getElementById(goalLblId);
-    const badge    = document.getElementById(badgeId);
-
-    spentLbl.textContent = fmt(spent) + ' spent';
-
-    if (!income) {
-      bar.style.width = '0%';
-      bar.className   = 'budget-bar ok';
-      goalLbl.textContent = 'Set income above to see goal';
-      badge.innerHTML = `<span class="status-badge no-data">No income set</span>`;
-      return;
-    }
-
-    const pct  = goalAmt > 0 ? Math.min(spent / goalAmt * 100, 100) : 0;
-    const over = spent > goalAmt && goalAmt > 0;
-    const warn = !over && goalAmt > 0 && spent / goalAmt >= 0.8;
-
-    bar.style.width = pct.toFixed(1) + '%';
-    bar.className   = 'budget-bar ' + (over ? 'over' : warn ? 'warn' : 'ok');
-    goalLbl.textContent = 'Goal: ' + fmt(goalAmt);
-
-    const remaining = goalAmt - spent;
-    if (over) {
-      badge.innerHTML = `<span class="status-badge over-budget">Over by ${fmt(Math.abs(remaining))}</span>`;
-    } else if (warn) {
-      badge.innerHTML = `<span class="status-badge warning">${fmt(remaining)} left</span>`;
-    } else {
-      badge.innerHTML = `<span class="status-badge on-track">${fmt(remaining)} left</span>`;
-    }
-  }
-
-  updateBar('needs-bar', 'needs-spent-label', 'needs-goal-label', 'needs-status-badge', needsSpent, needsGoal);
-  updateBar('wants-bar', 'wants-spent-label', 'wants-goal-label', 'wants-status-badge', wantsSpent, wantsGoal);
-
-  // Per-category breakdown
-  function renderCatBreakdown(containerId, catSet) {
-    const catTotals = {};
-    thisMoTxns.forEach(t => {
-      if (catSet.has(t.category)) catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
-    });
-    const sorted = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
-    document.getElementById(containerId).innerHTML = sorted.length
-      ? sorted.map(([name, val]) => {
-          const c = CAT_BY_NAME[name] || CAT_BY_NAME['Other'];
-          return `<div class="nw-cat-row">
-            <div class="cat-dot" style="background:${c.color}"></div>
-            <div class="nw-cat-name">${name}</div>
-            <div class="nw-cat-amt">${fmt(val)}</div>
-          </div>`;
-        }).join('')
-      : `<div style="font-size:13px;color:var(--text-3)">No spending this month</div>`;
-  }
-
-  renderCatBreakdown('needs-cats-breakdown', NEEDS_CATS);
-  renderCatBreakdown('wants-cats-breakdown', WANTS_CATS);
-
   // Keep stat cards in sync when income/goals change
   renderThisMonthStats(thisMoTxns, now, thisYM);
 }
