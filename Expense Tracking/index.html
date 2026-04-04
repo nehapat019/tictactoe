@@ -1468,9 +1468,9 @@ function renderYTDDonut(ytdTxns) {
 }
 
 // ── This Month stat cards ─────────────────────────────────────────────────────
-function renderThisMonthStats(thisMoTxns, now, thisYM) {
+function renderThisMonthStats(thisMoTxns, displayYM) {
   const incomeMap  = loadIncome();
-  const income     = incomeMap[thisYM] || 0;
+  const income     = incomeMap[displayYM] || 0;
   const goals      = loadGoals();
   const totalSpend = thisMoTxns.reduce((s, t) => s + t.amount, 0);
   const needsSpent = thisMoTxns.filter(t => NEEDS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
@@ -1576,17 +1576,15 @@ function renderYTDMonthlyTable(txns, thisYr) {
 }
 
 // ── Budget Section ────────────────────────────────────────────────────────────
-function renderBudgetSection(txns) {
-  const now    = new Date();
-  const thisYM = now.toISOString().slice(0, 7);
+function renderBudgetSection(txns, displayYM) {
+  if (!displayYM) displayYM = resolveDisplayMonth(txns);
 
-  // Income for current month
+  // Income for display month
   const incomeMap   = loadIncome();
-  const income      = incomeMap[thisYM] || 0;
+  const income      = incomeMap[displayYM] || 0;
   const incomeInput = document.getElementById('income-input');
   if (document.activeElement !== incomeInput) incomeInput.value = income || '';
-  document.getElementById('income-month-label').textContent =
-    now.toLocaleString('default', { month: 'long', year: 'numeric' });
+  document.getElementById('income-month-label').textContent = monthLabel(displayYM + '-01');
 
   // Goals
   const goals = loadGoals();
@@ -1611,7 +1609,7 @@ function renderBudgetSection(txns) {
   savingsEl.className   = 'savings-pct' + (totalAllocated > 100 ? ' negative' : '');
 
   // This month's spending
-  const thisMoTxns  = txns.filter(t => t.date.startsWith(thisYM));
+  const thisMoTxns  = txns.filter(t => t.date.startsWith(displayYM));
   const needsSpent  = thisMoTxns.filter(t => NEEDS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
   const wantsSpent  = thisMoTxns.filter(t => WANTS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
   const needsGoal   = income * goals.needs / 100;
@@ -1627,7 +1625,15 @@ function renderBudgetSection(txns) {
   gd('savings-goal-dollar', income ? fmt(savingsGoal) : '—');
 
   // Keep stat cards in sync when income/goals change
-  renderThisMonthStats(thisMoTxns, now, thisYM);
+  renderThisMonthStats(thisMoTxns, displayYM);
+}
+
+// ── Resolve display month (current month if it has data, else most recent month) ──
+function resolveDisplayMonth(txns) {
+  const todayYM = new Date().toISOString().slice(0, 7);
+  if (txns.some(t => t.date.startsWith(todayYM))) return todayYM;
+  const months = [...new Set(txns.map(t => t.date.slice(0, 7)))].sort();
+  return months.length ? months[months.length - 1] : todayYM;
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
@@ -1640,30 +1646,27 @@ function renderDashboard() {
 
   if (isEmpty) return;
 
-  const now    = new Date();
-  const thisYM = now.toISOString().slice(0, 7);
-  const thisYr = now.getFullYear().toString();
-
-  const thisMoTxns = txns.filter(t => t.date.startsWith(thisYM));
-  const ytdTxns    = txns.filter(t => t.date.startsWith(thisYr));
+  const displayYM  = resolveDisplayMonth(txns);
+  const displayYr  = displayYM.slice(0, 4);
+  const displayMo  = txns.filter(t => t.date.startsWith(displayYM));
+  const ytdTxns    = txns.filter(t => t.date.startsWith(displayYr));
 
   // Section labels
-  document.getElementById('this-month-label').textContent =
-    now.toLocaleString('default', { month: 'long', year: 'numeric' });
-  document.getElementById('ytd-year-label').textContent = thisYr;
+  document.getElementById('this-month-label').textContent = monthLabel(displayYM + '-01');
+  document.getElementById('ytd-year-label').textContent   = displayYr;
 
   // ── This Month ──
-  renderThisMonthStats(thisMoTxns, now, thisYM);
-  renderThisMonthDonut(thisMoTxns);
-  renderBudgetSection(txns);
-  renderTop10Table('month-top10-table', thisMoTxns, 'month-top10-label',
-    thisMoTxns.length ? monthLabel(thisYM + '-01') : '');
+  renderThisMonthStats(displayMo, displayYM);
+  renderThisMonthDonut(displayMo);
+  renderBudgetSection(txns, displayYM);
+  renderTop10Table('month-top10-table', displayMo, 'month-top10-label',
+    monthLabel(displayYM + '-01'));
 
   // ── Year-to-Date ──
-  renderYTDBar(txns, thisYr);
+  renderYTDBar(txns, displayYr);
   renderYTDDonut(ytdTxns);
-  renderYTDMonthlyTable(txns, thisYr);
-  renderTop10Table('ytd-top10-table', ytdTxns, 'ytd-top10-label', thisYr);
+  renderYTDMonthlyTable(txns, displayYr);
+  renderTop10Table('ytd-top10-table', ytdTxns, 'ytd-top10-label', displayYr);
 }
 
 // ── Transactions view ────────────────────────────────────────────────────────
