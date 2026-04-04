@@ -24,16 +24,20 @@
       --shadow:        0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
       --shadow-md:     0 4px 16px rgba(0,0,0,.10);
 
-      /* Category colors */
-      --food:    #f97316;
-      --grocery: #84cc16;
-      --travel:  #3b82f6;
-      --shop:    #a855f7;
-      --enter:   #eab308;
-      --health:  #10b981;
-      --bills:   #ef4444;
-      --person:  #ec4899;
-      --other:   #6b7280;
+      /* Category colors — Needs */
+      --rent:      #ef4444;
+      --utilities: #f59e0b;
+      --grocery:   #84cc16;
+      --transport: #3b82f6;
+      --health:    #10b981;
+      /* Category colors — Wants */
+      --food:      #f97316;
+      --shop:      #a855f7;
+      --enter:     #eab308;
+      --fitness:   #06b6d4;
+      --pcare:     #ec4899;
+      --travel:    #8b5cf6;
+      --other:     #6b7280;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -576,7 +580,7 @@
                   <div class="goal-table-label-name">
                     <span class="goal-dot needs-dot"></span> Needs
                   </div>
-                  <div class="goal-table-label-sub">Groceries · Bills · Health</div>
+                  <div class="goal-table-label-sub">Rent · Utilities · Groceries · Transport · Health</div>
                 </div>
                 <div class="goal-slider-col">
                   <input type="range" id="needs-pct-slider" min="0" max="100" value="50" class="goal-slider needs-slider">
@@ -593,7 +597,7 @@
                   <div class="goal-table-label-name">
                     <span class="goal-dot wants-dot"></span> Wants
                   </div>
-                  <div class="goal-table-label-sub">Dining · Shopping · Travel</div>
+                  <div class="goal-table-label-sub">Dining · Shopping · Entertainment · Fitness · More</div>
                 </div>
                 <div class="goal-slider-col">
                   <input type="range" id="wants-pct-slider" min="0" max="100" value="30" class="goal-slider wants-slider">
@@ -832,41 +836,46 @@
 <script>
 // ── Categories ──────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { name: 'Food & Dining',      color: '#f97316', key: 'food'    },
-  { name: 'Groceries',          color: '#84cc16', key: 'grocery' },
-  { name: 'Travel & Transport', color: '#3b82f6', key: 'travel'  },
-  { name: 'Shopping',           color: '#a855f7', key: 'shop'    },
-  { name: 'Entertainment',      color: '#eab308', key: 'enter'   },
-  { name: 'Health & Wellness',  color: '#10b981', key: 'health'  },
-  { name: 'Bills & Fees',       color: '#ef4444', key: 'bills'   },
-  { name: 'Personal',           color: '#ec4899', key: 'person'  },
-  { name: 'Other',              color: '#6b7280', key: 'other'   },
+  // Needs
+  { name: 'Rent',              color: '#ef4444', key: 'rent'      },
+  { name: 'Utilities',         color: '#f59e0b', key: 'utilities' },
+  { name: 'Groceries',         color: '#84cc16', key: 'grocery'   },
+  { name: 'Transportation',    color: '#3b82f6', key: 'transport' },
+  { name: 'Health',            color: '#10b981', key: 'health'    },
+  // Wants
+  { name: 'Food & Dining',     color: '#f97316', key: 'food'      },
+  { name: 'Shopping',          color: '#a855f7', key: 'shop'      },
+  { name: 'Entertainment',     color: '#eab308', key: 'enter'     },
+  { name: 'Fitness & Wellness',color: '#06b6d4', key: 'fitness'   },
+  { name: 'Personal Care',     color: '#ec4899', key: 'pcare'     },
+  { name: 'Travel',            color: '#8b5cf6', key: 'travel'    },
+  { name: 'Other',             color: '#6b7280', key: 'other'     },
 ];
 const CAT_NAMES   = CATEGORIES.map(c => c.name);
 const CAT_BY_NAME = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
 
 // Needs vs Wants classification
-const NEEDS_CATS = new Set(['Groceries', 'Bills & Fees', 'Health & Wellness']);
-const WANTS_CATS = new Set(['Food & Dining', 'Travel & Transport', 'Shopping', 'Entertainment', 'Personal', 'Other']);
+const NEEDS_CATS = new Set(['Rent', 'Utilities', 'Groceries', 'Transportation', 'Health']);
+const WANTS_CATS = new Set(['Food & Dining', 'Shopping', 'Entertainment', 'Fitness & Wellness', 'Personal Care', 'Travel', 'Other']);
 
 // Chase → App category mapping
 const CHASE_MAP = {
   'Food & Drink':        'Food & Dining',
   'Groceries':           'Groceries',
   'Restaurants':         'Food & Dining',
-  'Travel':              'Travel & Transport',
-  'Gas':                 'Travel & Transport',
-  'Auto & Transport':    'Travel & Transport',
+  'Travel':              'Travel',
+  'Gas':                 'Transportation',
+  'Auto & Transport':    'Transportation',
   'Shopping':            'Shopping',
   'Merchandise':         'Shopping',
   'Entertainment':       'Entertainment',
   'Arts':                'Entertainment',
-  'Health & Wellness':   'Health & Wellness',
-  'Medical':             'Health & Wellness',
-  'Bills & Utilities':   'Bills & Fees',
-  'Fees & Adjustments':  'Bills & Fees',
-  'Utilities':           'Bills & Fees',
-  'Personal':            'Personal',
+  'Health & Wellness':   'Health',
+  'Medical':             'Health',
+  'Bills & Utilities':   'Utilities',
+  'Fees & Adjustments':  'Other',
+  'Utilities':           'Utilities',
+  'Personal':            'Personal Care',
   'Education':           'Other',
   'Gifts & Donations':   'Other',
   'Home':                'Shopping',
@@ -879,14 +888,17 @@ function mapCategory(raw) {
 
 // Keyword-based categorization (for bank / Venmo which have no Chase category)
 const KEYWORD_RULES = [
-  { re: /trader joe|whole foods|safeway|kroger|publix|wegmans|costco|blinkit|westside market|zabar|hashi|grocery|supermarket|market\b/i, cat: 'Groceries' },
+  { re: /\brent\b|mortgage|hoa\b|lease payment/i,                                                                                              cat: 'Rent'              },
+  { re: /electric|con ed|pge|pseg|water bill|gas bill|internet|verizon|at&t|comcast|spectrum|xfinity|utility|utilities|icloud|google.*storage/i, cat: 'Utilities'         },
+  { re: /trader joe|whole foods|safeway|kroger|publix|wegmans|blinkit|westside market|zabar|hashi|grocery|supermarket|market\b/i,               cat: 'Groceries'         },
+  { re: /\bmta\b|nyct|uber|lyft|taxi|curb|empower\*|transit|metro|subway|train|bus|parking|shell|bp|chevron|exxon|toll|e-zpass/i,               cat: 'Transportation'    },
+  { re: /pharmacy|cvs|walgreens|rite aid|doctor|hospital|clinic|medical|dental|vision|optometrist/i,                                            cat: 'Health'            },
   { re: /restaurant|cafe|coffee|starbucks|mcdonald|chipotle|subway|pizza|sushi|bagel|deli|bakery|taco|burger|grill|kitchen|dining|doordash|grubhub|ubereats|seamless|gelat|sweet|rivareno|bosphorous|herald|fonty|just salad|maman|yene|banh|mama|sq \*/i, cat: 'Food & Dining' },
-  { re: /\bmta\b|nyct|uber|lyft|taxi|curb|empower\*|transit|metro|train|bus|parking|shell|bp|chevron|exxon|amtrak|airline|delta|united|southwest|hertz|avis|toll|e-zpass/i, cat: 'Travel & Transport' },
-  { re: /amazon|target|walmart|costco|sephora|homegoods|depop|calvin klein|nuuly|tokito|h&m|zara|gap|old navy|nordstrom|tj maxx|marshalls|bestbuy|apple store|etsy/i, cat: 'Shopping' },
-  { re: /netflix|spotify|hulu|disney|hbo|apple.*tv|youtube|cinema|theater|theatre|movie|concert|kydlab|ctlp|peek|selvatura|ticketmaster|stub hub/i, cat: 'Entertainment' },
-  { re: /pharmacy|cvs|walgreens|rite aid|doctor|hospital|clinic|medical|dental|vision|gym|fitness|yoga|pilates|soul cycle|peloton|heatwise|spirit studio/i, cat: 'Health & Wellness' },
-  { re: /electric|gas bill|water bill|internet|verizon|at&t|comcast|spectrum|insurance|rent|mortgage|hoa|utility|annual fee|membership fee/i, cat: 'Bills & Fees' },
-  { re: /venmo|cashapp|zelle|paypal|splitwise/i, cat: 'Personal' },
+  { re: /amazon|target|walmart|homegoods|depop|calvin klein|nuuly|tokito|h&m|zara|gap|old navy|nordstrom|tj maxx|marshalls|bestbuy|apple store|etsy|costco/i,              cat: 'Shopping'          },
+  { re: /netflix|spotify|hulu|disney|hbo|apple.*tv|youtube|cinema|theater|theatre|movie|concert|kydlab|ctlp|peek|selvatura|ticketmaster|stub hub/i,                        cat: 'Entertainment'     },
+  { re: /gym|fitness|yoga|pilates|soul cycle|peloton|heatwise|spirit studio|equinox|planet fitness|classpass|blink fitness/i,                   cat: 'Fitness & Wellness'},
+  { re: /sephora|salon|spa|beauty|haircut|nail|barber|massage|skincare|ulta|venmo|cashapp|zelle|paypal|splitwise/i,                             cat: 'Personal Care'     },
+  { re: /amtrak|airline|delta|united|southwest|american air|jetblue|spirit air|frontier|hertz|avis|airbnb|hotel|hilton|marriott|hyatt|resort|expedia|booking\.com/i,       cat: 'Travel'            },
 ];
 
 function categorizeByKeyword(desc) {
@@ -897,7 +909,19 @@ function categorizeByKeyword(desc) {
 }
 
 // ── Data layer ──────────────────────────────────────────────────────────────
-function loadTxns()     { try { return JSON.parse(localStorage.getItem('et_txns') || '[]'); } catch { return []; } }
+// Migrate old category names to current schema
+const CAT_MIGRATION = {
+  'Health & Wellness':  'Health',
+  'Bills & Fees':       'Utilities',
+  'Travel & Transport': 'Transportation',
+  'Personal':           'Personal Care',
+};
+function loadTxns() {
+  try {
+    const txns = JSON.parse(localStorage.getItem('et_txns') || '[]');
+    return txns.map(t => ({ ...t, category: CAT_MIGRATION[t.category] || t.category }));
+  } catch { return []; }
+}
 function saveTxns(arr)  { localStorage.setItem('et_txns', JSON.stringify(arr)); }
 
 // Income stored per month: { "2026-03": 5000, ... }
