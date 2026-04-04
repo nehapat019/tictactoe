@@ -891,7 +891,7 @@ const KEYWORD_RULES = [
   { re: /\brent\b|mortgage|hoa\b|lease payment/i,                                                                                              cat: 'Rent'              },
   { re: /electric|con ed|pge|pseg|water bill|gas bill|internet|verizon|at&t|comcast|spectrum|xfinity|utility|utilities|icloud|google.*storage/i, cat: 'Utilities'         },
   { re: /trader joe|whole foods|safeway|kroger|publix|wegmans|blinkit|westside market|zabar|hashi|grocery|supermarket|market\b/i,               cat: 'Groceries'         },
-  { re: /\bmta\b|nyct|uber|lyft|taxi|curb|empower\*|transit|metro|subway|train|bus|parking|shell|bp|chevron|exxon|toll|e-zpass/i,               cat: 'Transportation'    },
+  { re: /\bmta\b|mta ny go|nyct|uber|lyft|taxi|curb|empower\*|transit|metro|subway|train|bus|parking|shell|bp|chevron|exxon|toll|e-zpass/i,      cat: 'Transportation'    },
   { re: /pharmacy|cvs|walgreens|rite aid|doctor|hospital|clinic|medical|dental|vision|optometrist/i,                                            cat: 'Health'            },
   { re: /restaurant|cafe|coffee|starbucks|mcdonald|chipotle|subway|pizza|sushi|bagel|deli|bakery|taco|burger|grill|kitchen|dining|doordash|grubhub|ubereats|seamless|gelat|sweet|rivareno|bosphorous|herald|fonty|just salad|maman|yene|banh|mama|sq \*/i, cat: 'Food & Dining' },
   { re: /amazon|target|walmart|homegoods|depop|calvin klein|nuuly|tokito|h&m|zara|gap|old navy|nordstrom|tj maxx|marshalls|bestbuy|apple store|etsy|costco/i,              cat: 'Shopping'          },
@@ -916,10 +916,25 @@ const CAT_MIGRATION = {
   'Travel & Transport': 'Transportation',
   'Personal':           'Personal Care',
 };
+const KNOWN_CATS = new Set([
+  'Rent','Utilities','Groceries','Transportation','Health',
+  'Food & Dining','Shopping','Entertainment','Fitness & Wellness','Personal Care','Travel','Other'
+]);
 function loadTxns() {
   try {
     const txns = JSON.parse(localStorage.getItem('et_txns') || '[]');
-    return txns.map(t => ({ ...t, category: CAT_MIGRATION[t.category] || t.category }));
+    return txns.map(t => {
+      // 1. apply name migration
+      let cat = CAT_MIGRATION[t.category] || t.category;
+      // 2. if still not in current schema, re-categorize by keyword
+      if (!KNOWN_CATS.has(cat)) cat = categorizeByKeyword(t.description);
+      // 3. keyword-first upgrade: if stored as Other/Travel but keywords say otherwise, upgrade
+      if ((cat === 'Other' || cat === 'Travel') && t.description) {
+        const kw = categorizeByKeyword(t.description);
+        if (kw !== 'Other') cat = kw;
+      }
+      return { ...t, category: cat };
+    });
   } catch { return []; }
 }
 function saveTxns(arr)  { localStorage.setItem('et_txns', JSON.stringify(arr)); }
@@ -1038,12 +1053,13 @@ function parseChaseCreditCSV(text) {
     const rawCat  = clean(cols[iCat]  || '');
     if (!rawDate || !desc) continue;
 
+    const kwCat = categorizeByKeyword(desc);
     rows.push({
-      date:          parseDate(rawDate),
-      description:   desc,
+      date:             parseDate(rawDate),
+      description:      desc,
       originalCategory: rawCat,
-      category:      mapCategory(rawCat),
-      amount:        Math.round(amount * 100) / 100,
+      category:         kwCat !== 'Other' ? kwCat : mapCategory(rawCat),
+      amount:           Math.round(amount * 100) / 100,
     });
   }
   return rows;
@@ -1200,8 +1216,7 @@ function parseGenericCSV(text) {
       date:             parseDate(rawDate),
       description:      desc,
       originalCategory: rawCat,
-      category:         rawCat ? (mapCategory(rawCat) !== 'Other' ? mapCategory(rawCat) : categorizeByKeyword(desc))
-                               : categorizeByKeyword(desc),
+      category:         categorizeByKeyword(desc) !== 'Other' ? categorizeByKeyword(desc) : mapCategory(rawCat),
       amount:           Math.round(amount * 100) / 100,
     });
   }
