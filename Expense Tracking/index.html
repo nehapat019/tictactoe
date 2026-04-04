@@ -888,7 +888,7 @@ function mapCategory(raw) {
 
 // Keyword-based categorization (for bank / Venmo which have no Chase category)
 const KEYWORD_RULES = [
-  { re: /\brent\b|mortgage|hoa\b|lease payment/i,                                                                                              cat: 'Rent'              },
+  { re: /\brent\b|mortgage|hoa\b|lease payment|bilt rewards|streeteasy|zumper|cozy\.co/i,                                                      cat: 'Rent'              },
   { re: /electric|con ed|pge|pseg|water bill|gas bill|internet|verizon|at&t|comcast|spectrum|xfinity|utility|utilities|icloud|google.*storage/i, cat: 'Utilities'         },
   { re: /trader joe|whole foods|safeway|kroger|publix|wegmans|blinkit|westside market|zabar|hashi|grocery|supermarket|market\b/i,               cat: 'Groceries'         },
   { re: /\bmta\b|mta ny go|nyct|uber|lyft|taxi|curb|empower\*|transit|metro|subway|train|bus|parking|shell|bp|chevron|exxon|toll|e-zpass/i,      cat: 'Transportation'    },
@@ -924,15 +924,13 @@ function loadTxns() {
   try {
     const txns = JSON.parse(localStorage.getItem('et_txns') || '[]');
     return txns.map(t => {
-      // 1. apply name migration
+      // 1. apply name migration for old category names
       let cat = CAT_MIGRATION[t.category] || t.category;
-      // 2. if still not in current schema, re-categorize by keyword
-      if (!KNOWN_CATS.has(cat)) cat = categorizeByKeyword(t.description);
-      // 3. keyword-first upgrade: if stored as Other/Travel but keywords say otherwise, upgrade
-      if ((cat === 'Other' || cat === 'Travel') && t.description) {
-        const kw = categorizeByKeyword(t.description);
-        if (kw !== 'Other') cat = kw;
-      }
+      // 2. keyword-first: description always wins if it gives a specific match
+      const kw = t.description ? categorizeByKeyword(t.description) : 'Other';
+      if (kw !== 'Other') cat = kw;
+      // 3. if still unknown, fall back to Other
+      if (!KNOWN_CATS.has(cat)) cat = 'Other';
       return { ...t, category: cat };
     });
   } catch { return []; }
