@@ -438,6 +438,17 @@
     .status-badge.over-budget { background: #fee2e2; color: #991b1b; }
     .status-badge.no-data  { background: var(--bg); color: var(--text-2); }
 
+    /* ── Dashboard sections ───────────────────────────────────────────── */
+    .section-heading {
+      font-size: 19px; font-weight: 700; letter-spacing: -.3px;
+      margin: 0 0 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+      display: flex; align-items: baseline; gap: 10px;
+    }
+    .section-heading-sub { font-size: 14px; font-weight: 500; color: var(--text-2); }
+    .section-sep { margin: 40px 0 32px; }
+
     @media (max-width: 720px) {
       .grid-2, .grid-2-1 { grid-template-columns: 1fr; }
       .stat-grid { grid-template-columns: 1fr 1fr; }
@@ -466,16 +477,44 @@
 
   <!-- ── Dashboard ─────────────────────────────────────────────────────────── -->
   <div class="view active" id="view-dashboard">
-    <div class="stat-grid" id="stat-grid"></div>
 
-    <!-- ── Budget & Goals Section ──────────────────────────────────────────── -->
-    <div id="budget-section" style="display:none">
+    <div class="empty" id="dashboard-empty" style="display:none">
+      <div class="empty-icon">📊</div>
+      <h3>No data yet</h3>
+      <p>Import a credit card statement to get started.</p>
+      <button class="btn btn-primary mt-4" data-view="import">Import Statement</button>
+    </div>
+
+    <div id="dashboard-content" style="display:none">
+
+      <!-- ════ THIS MONTH ════ -->
+      <div class="section-heading">
+        This Month <span class="section-heading-sub" id="this-month-label"></span>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="stat-grid" id="stat-grid-month" style="margin-bottom:24px"></div>
+
+      <!-- Category donut + Income & Goals -->
       <div class="grid-2" style="margin-bottom:24px">
-        <!-- Monthly Net Income -->
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title">Monthly Net Income</div>
+              <div class="card-title">Spending by Category</div>
+              <div class="card-sub" id="month-cat-sub">This month</div>
+            </div>
+          </div>
+          <div class="card-body" style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
+            <div class="donut-wrap" style="flex-shrink:0;width:180px">
+              <canvas id="chart-donut"></canvas>
+            </div>
+            <div class="cat-legend" id="cat-legend" style="flex:1;min-width:140px"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Income &amp; Spending Goals</div>
               <div class="card-sub">After taxes, 401k &amp; market contributions</div>
             </div>
             <span id="income-month-label" style="font-size:13px;color:var(--text-2);font-weight:500"></span>
@@ -485,18 +524,8 @@
               <span class="income-prefix">$</span>
               <input type="number" id="income-input" class="income-input" placeholder="0" min="0" step="100">
             </div>
-            <p class="income-hint">Update each month to track your budget goals</p>
-          </div>
-        </div>
-        <!-- Spending Goals -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Spending Goals</div>
-              <div class="card-sub">% of monthly net income</div>
-            </div>
-          </div>
-          <div class="card-body">
+            <p class="income-hint">Monthly net income (post taxes, 401k &amp; market)</p>
+            <hr style="margin:14px 0 12px">
             <div class="goal-row">
               <div class="goal-label"><span class="goal-dot needs-dot"></span> Needs</div>
               <div class="goal-slider-wrap">
@@ -523,7 +552,7 @@
         </div>
       </div>
 
-      <!-- Needs vs Wants Progress -->
+      <!-- Needs vs Wants progress bars -->
       <div class="grid-2" style="margin-bottom:24px">
         <div class="card">
           <div class="card-header">
@@ -564,56 +593,74 @@
           </div>
         </div>
       </div>
-    </div>
-    <!-- ── End Budget Section ───────────────────────────────────────────────── -->
 
-    <div class="grid-2">
-      <!-- Monthly trend -->
-      <div class="card">
+      <!-- Top 10 This Month -->
+      <div class="card" style="margin-bottom:40px">
+        <div class="card-header">
+          <div class="card-title">Top 10 Largest Transactions</div>
+          <span id="month-top10-label" style="font-size:13px;color:var(--text-2)"></span>
+        </div>
+        <div class="card-body" style="padding-top:12px">
+          <div class="table-wrap" id="month-top10-table"></div>
+        </div>
+      </div>
+
+      <!-- ════ YEAR-TO-DATE ════ -->
+      <div class="section-heading" style="margin-top:8px">
+        Year-to-Date <span class="section-heading-sub" id="ytd-year-label"></span>
+      </div>
+
+      <!-- YTD Monthly spending bar chart -->
+      <div class="card" style="margin-bottom:24px">
         <div class="card-header">
           <div>
             <div class="card-title">Monthly Spending</div>
-            <div class="card-sub">Last 6 months</div>
+            <div class="card-sub" id="ytd-bar-sub"></div>
           </div>
         </div>
         <div class="card-body chart-wrap">
           <canvas id="chart-bar"></canvas>
         </div>
       </div>
-      <!-- Category breakdown -->
-      <div class="card">
+
+      <!-- YTD Category breakdown -->
+      <div class="card" style="margin-bottom:24px">
         <div class="card-header">
           <div>
-            <div class="card-title">By Category</div>
-            <div class="card-sub" id="donut-period-label">This month</div>
+            <div class="card-title">Spending by Category</div>
+            <div class="card-sub" id="ytd-cat-sub"></div>
           </div>
         </div>
         <div class="card-body" style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
           <div class="donut-wrap" style="flex-shrink:0;width:180px">
-            <canvas id="chart-donut"></canvas>
+            <canvas id="chart-ytd-donut"></canvas>
           </div>
-          <div class="cat-legend" id="cat-legend" style="flex:1;min-width:140px"></div>
+          <div class="cat-legend" id="ytd-cat-legend" style="flex:1;min-width:140px"></div>
         </div>
       </div>
-    </div>
 
-    <!-- Recent transactions -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Recent Transactions</div>
-        <button class="btn btn-ghost btn-sm" data-view="transactions">View all →</button>
+      <!-- YTD Monthly summary table -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <div class="card-title">Monthly Summary</div>
+        </div>
+        <div class="card-body" style="padding-top:12px">
+          <div class="table-wrap" id="ytd-monthly-table"></div>
+        </div>
       </div>
-      <div class="card-body" style="padding-top:12px">
-        <div class="table-wrap" id="recent-table"></div>
-      </div>
-    </div>
 
-    <div class="empty" id="dashboard-empty" style="display:none">
-      <div class="empty-icon">📊</div>
-      <h3>No data yet</h3>
-      <p>Import a credit card statement to get started.</p>
-      <button class="btn btn-primary mt-4" data-view="import">Import Statement</button>
-    </div>
+      <!-- YTD Top 10 -->
+      <div class="card" style="margin-bottom:40px">
+        <div class="card-header">
+          <div class="card-title">Top 10 Largest Transactions</div>
+          <span id="ytd-top10-label" style="font-size:13px;color:var(--text-2)"></span>
+        </div>
+        <div class="card-body" style="padding-top:12px">
+          <div class="table-wrap" id="ytd-top10-table"></div>
+        </div>
+      </div>
+
+    </div><!-- /dashboard-content -->
   </div>
 
   <!-- ── Import ─────────────────────────────────────────────────────────────── -->
@@ -1258,18 +1305,62 @@ function catSelectHTML(selected) {
 }
 
 // ── Charts ───────────────────────────────────────────────────────────────────
-let chartBar = null, chartDonut = null;
+let chartBar = null, chartDonut = null, chartYtdDonut = null;
 
-function renderCharts(txns) {
-  // Bar chart: last 6 months spending
+function renderThisMonthDonut(thisMoTxns) {
+  const catTotals = {};
+  thisMoTxns.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + t.amount; });
+  const catsSorted = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
+  const total = catsSorted.reduce((s, [, v]) => s + v, 0);
+
+  const donutCtx = document.getElementById('chart-donut').getContext('2d');
+  if (chartDonut) chartDonut.destroy();
+  chartDonut = new Chart(donutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: catsSorted.map(([k]) => k),
+      datasets: [{
+        data: catsSorted.map(([, v]) => +v.toFixed(2)),
+        backgroundColor: catsSorted.map(([k]) => (CAT_BY_NAME[k] || CAT_BY_NAME['Other']).color),
+        borderWidth: 2, borderColor: '#fff',
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}`
+      }}},
+      cutout: '65%', responsive: true, maintainAspectRatio: true,
+    }
+  });
+
+  document.getElementById('cat-legend').innerHTML = catsSorted.length
+    ? catsSorted.map(([name, val]) => {
+        const c = CAT_BY_NAME[name] || CAT_BY_NAME['Other'];
+        const pct = total ? Math.round(val / total * 100) : 0;
+        return `<div class="cat-legend-row">
+          <div class="cat-dot" style="background:${c.color}"></div>
+          <div class="cat-legend-name">${name}</div>
+          <div class="cat-legend-pct">${pct}%</div>
+          <div class="cat-legend-amt">${fmt(val)}</div>
+        </div>`;
+      }).join('')
+    : '<div style="color:var(--text-3);font-size:13px;padding:8px 0">No transactions this month</div>';
+}
+
+function renderYTDBar(txns, thisYr) {
+  const ytdTxns = txns.filter(t => t.date.startsWith(thisYr));
   const monthMap = {};
-  txns.forEach(t => {
+  ytdTxns.forEach(t => {
     const ym = t.date.slice(0, 7);
     monthMap[ym] = (monthMap[ym] || 0) + t.amount;
   });
-  const months = Object.keys(monthMap).sort().slice(-6);
+  const months    = Object.keys(monthMap).sort();
   const barLabels = months.map(m => monthLabel(m + '-01'));
   const barData   = months.map(m => +monthMap[m].toFixed(2));
+  const ytdTotal  = ytdTxns.reduce((s, t) => s + t.amount, 0);
+
+  document.getElementById('ytd-bar-sub').textContent =
+    months.length ? `${thisYr} total: ${fmt(ytdTotal)} across ${months.length} month${months.length !== 1 ? 's' : ''}` : '';
 
   const barCtx = document.getElementById('chart-bar').getContext('2d');
   if (chartBar) chartBar.destroy();
@@ -1286,53 +1377,48 @@ function renderCharts(txns) {
       }]
     },
     options: {
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.parsed.y) } },
+      },
       scales: {
         y: { ticks: { callback: v => '$' + v.toLocaleString() }, grid: { color: '#e2e8f0' } },
         x: { grid: { display: false } }
       },
-      responsive: true,
-      maintainAspectRatio: true,
+      responsive: true, maintainAspectRatio: true,
     }
   });
+}
 
-  // Donut chart: this month by category
-  const thisMonth = new Date().toISOString().slice(0, 7);
-  const monthTxns = txns.filter(t => t.date.startsWith(thisMonth));
-  document.getElementById('donut-period-label').textContent =
-    monthTxns.length ? monthLabel(thisMonth + '-01') : 'All time';
-  const sourceTxns = monthTxns.length ? monthTxns : txns;
-
+function renderYTDDonut(ytdTxns) {
   const catTotals = {};
-  sourceTxns.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + t.amount; });
+  ytdTxns.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + t.amount; });
   const catsSorted = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
   const total = catsSorted.reduce((s, [, v]) => s + v, 0);
 
-  const donutCtx = document.getElementById('chart-donut').getContext('2d');
-  if (chartDonut) chartDonut.destroy();
-  chartDonut = new Chart(donutCtx, {
+  document.getElementById('ytd-cat-sub').textContent = total ? `Total: ${fmt(total)}` : '';
+
+  const donutCtx = document.getElementById('chart-ytd-donut').getContext('2d');
+  if (chartYtdDonut) chartYtdDonut.destroy();
+  chartYtdDonut = new Chart(donutCtx, {
     type: 'doughnut',
     data: {
       labels: catsSorted.map(([k]) => k),
       datasets: [{
         data: catsSorted.map(([, v]) => +v.toFixed(2)),
         backgroundColor: catsSorted.map(([k]) => (CAT_BY_NAME[k] || CAT_BY_NAME['Other']).color),
-        borderWidth: 2,
-        borderColor: '#fff',
+        borderWidth: 2, borderColor: '#fff',
       }]
     },
     options: {
       plugins: { legend: { display: false }, tooltip: { callbacks: {
         label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}`
       }}},
-      cutout: '65%',
-      responsive: true,
-      maintainAspectRatio: true,
+      cutout: '65%', responsive: true, maintainAspectRatio: true,
     }
   });
 
-  // Legend
-  document.getElementById('cat-legend').innerHTML = catsSorted.map(([name, val]) => {
+  document.getElementById('ytd-cat-legend').innerHTML = catsSorted.map(([name, val]) => {
     const c = CAT_BY_NAME[name] || CAT_BY_NAME['Other'];
     const pct = total ? Math.round(val / total * 100) : 0;
     return `<div class="cat-legend-row">
@@ -1344,13 +1430,118 @@ function renderCharts(txns) {
   }).join('');
 }
 
+// ── This Month stat cards ─────────────────────────────────────────────────────
+function renderThisMonthStats(thisMoTxns, now, thisYM) {
+  const incomeMap  = loadIncome();
+  const income     = incomeMap[thisYM] || 0;
+  const goals      = loadGoals();
+  const totalSpend = thisMoTxns.reduce((s, t) => s + t.amount, 0);
+  const needsSpent = thisMoTxns.filter(t => NEEDS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
+  const wantsSpent = thisMoTxns.filter(t => WANTS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
+  const needsGoal  = income ? income * goals.needs / 100 : 0;
+  const wantsGoal  = income ? income * goals.wants / 100 : 0;
+
+  document.getElementById('stat-grid-month').innerHTML = [
+    {
+      label: 'Total Spend',
+      value: fmt(totalSpend),
+      sub: `${thisMoTxns.length} transaction${thisMoTxns.length !== 1 ? 's' : ''}`,
+      cls: '',
+    },
+    {
+      label: 'Monthly Net Income',
+      value: income ? fmt(income) : '—',
+      sub: 'After taxes, 401k &amp; market',
+      cls: '',
+    },
+    {
+      label: 'Needs Spending',
+      value: fmt(needsSpent),
+      sub: income ? `Goal: ${fmt(needsGoal)} (${goals.needs}%)` : `Goal: ${goals.needs}% of income`,
+      cls: income && needsSpent > needsGoal ? 'text-danger' : '',
+    },
+    {
+      label: 'Wants Spending',
+      value: fmt(wantsSpent),
+      sub: income ? `Goal: ${fmt(wantsGoal)} (${goals.wants}%)` : `Goal: ${goals.wants}% of income`,
+      cls: income && wantsSpent > wantsGoal ? 'text-danger' : '',
+    },
+  ].map(s => `<div class="stat-card">
+    <div class="stat-label">${s.label}</div>
+    <div class="stat-value ${s.cls}">${s.value}</div>
+    <div class="stat-sub">${s.sub}</div>
+  </div>`).join('');
+}
+
+// ── Top-10 Transactions table ─────────────────────────────────────────────────
+function renderTop10Table(containerId, txns, labelId, labelText) {
+  const top10 = [...txns].sort((a, b) => b.amount - a.amount).slice(0, 10);
+  if (labelId) document.getElementById(labelId).textContent = labelText || '';
+  document.getElementById(containerId).innerHTML = top10.length
+    ? `<table>
+        <thead><tr>
+          <th>Date</th><th>Description</th><th>Category</th><th class="r">Amount</th>
+        </tr></thead>
+        <tbody>${top10.map(t => `<tr>
+          <td class="muted">${fmtDate(t.date)}</td>
+          <td>${t.description}</td>
+          <td>${badgeHTML(t.category)}</td>
+          <td class="r amount-cell">${fmt(t.amount)}</td>
+        </tr>`).join('')}</tbody>
+      </table>`
+    : '<div style="padding:20px;color:var(--text-3);text-align:center;font-size:14px">No transactions</div>';
+}
+
+// ── YTD Monthly summary table ─────────────────────────────────────────────────
+function renderYTDMonthlyTable(txns, thisYr) {
+  const incomeMap = loadIncome();
+  const ytdTxns   = txns.filter(t => t.date.startsWith(thisYr));
+  const months    = [...new Set(ytdTxns.map(t => t.date.slice(0, 7)))].sort();
+
+  let totIncome = 0, totNeeds = 0, totWants = 0, totSpend = 0;
+  const rows = months.map(ym => {
+    const moTxns = ytdTxns.filter(t => t.date.startsWith(ym));
+    const income = incomeMap[ym] || 0;
+    const needs  = moTxns.filter(t => NEEDS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
+    const wants  = moTxns.filter(t => WANTS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
+    const spend  = moTxns.reduce((s, t) => s + t.amount, 0);
+    totIncome += income; totNeeds += needs; totWants += wants; totSpend += spend;
+    return { ym, income, needs, wants, spend };
+  });
+
+  document.getElementById('ytd-monthly-table').innerHTML = rows.length
+    ? `<table>
+        <thead><tr>
+          <th>Month</th>
+          <th class="r">Income</th>
+          <th class="r">Needs</th>
+          <th class="r">Wants</th>
+          <th class="r">Total Spend</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr>
+            <td style="font-weight:500">${monthLabel(r.ym + '-01')}</td>
+            <td class="r muted">${r.income ? fmt(r.income) : '—'}</td>
+            <td class="r">${fmt(r.needs)}</td>
+            <td class="r">${fmt(r.wants)}</td>
+            <td class="r amount-cell">${fmt(r.spend)}</td>
+          </tr>`).join('')}
+          <tr class="total-row">
+            <td>Total</td>
+            <td class="r">${totIncome ? fmt(totIncome) : '—'}</td>
+            <td class="r">${fmt(totNeeds)}</td>
+            <td class="r">${fmt(totWants)}</td>
+            <td class="r amount-cell">${fmt(totSpend)}</td>
+          </tr>
+        </tbody>
+      </table>`
+    : '<div style="padding:20px;color:var(--text-3);text-align:center;font-size:14px">No transactions this year</div>';
+}
+
 // ── Budget Section ────────────────────────────────────────────────────────────
 function renderBudgetSection(txns) {
   const now    = new Date();
   const thisYM = now.toISOString().slice(0, 7);
-
-  document.getElementById('budget-section').style.display = txns.length ? '' : 'none';
-  if (!txns.length) return;
 
   // Income for current month
   const incomeMap   = loadIncome();
@@ -1442,62 +1633,45 @@ function renderBudgetSection(txns) {
 
   renderCatBreakdown('needs-cats-breakdown', NEEDS_CATS);
   renderCatBreakdown('wants-cats-breakdown', WANTS_CATS);
+
+  // Keep stat cards in sync when income/goals change
+  renderThisMonthStats(thisMoTxns, now, thisYM);
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 function renderDashboard() {
-  const txns = loadTxns();
+  const txns    = loadTxns();
   const isEmpty = txns.length === 0;
 
-  document.getElementById('dashboard-empty').style.display = isEmpty ? '' : 'none';
-  document.getElementById('budget-section').style.display  = isEmpty ? 'none' : '';
-  ['stat-grid','chart-bar','chart-donut','cat-legend','recent-table'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el && el.tagName !== 'CANVAS') el.style.display = isEmpty ? 'none' : '';
-    if (el && el.tagName === 'CANVAS') el.closest('.card').style.display = isEmpty ? 'none' : '';
-  });
-  document.querySelectorAll('.grid-2, .grid-2-1').forEach(el => el.style.display = isEmpty ? 'none' : '');
+  document.getElementById('dashboard-empty').style.display   = isEmpty ? '' : 'none';
+  document.getElementById('dashboard-content').style.display = isEmpty ? 'none' : '';
 
   if (isEmpty) return;
 
-  // Stat cards
-  const now = new Date();
-  const thisYM  = now.toISOString().slice(0, 7);
-  const lastYM  = (() => { const d = new Date(now); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7); })();
-  const thisYr  = now.getFullYear().toString();
+  const now    = new Date();
+  const thisYM = now.toISOString().slice(0, 7);
+  const thisYr = now.getFullYear().toString();
 
-  const sum = arr => arr.reduce((s, t) => s + t.amount, 0);
-  const thisMo  = txns.filter(t => t.date.startsWith(thisYM));
-  const lastMo  = txns.filter(t => t.date.startsWith(lastYM));
-  const ytd     = txns.filter(t => t.date.startsWith(thisYr));
+  const thisMoTxns = txns.filter(t => t.date.startsWith(thisYM));
+  const ytdTxns    = txns.filter(t => t.date.startsWith(thisYr));
 
-  document.getElementById('stat-grid').innerHTML = [
-    { label: 'This Month',  value: fmt(sum(thisMo)),  sub: `${thisMo.length} transactions` },
-    { label: 'Last Month',  value: fmt(sum(lastMo)),  sub: `${lastMo.length} transactions` },
-    { label: 'Year to Date', value: fmt(sum(ytd)),    sub: `${ytd.length} transactions`    },
-    { label: 'All Time',    value: fmt(sum(txns)),    sub: `${txns.length} total`          },
-  ].map(s => `<div class="stat-card">
-    <div class="stat-label">${s.label}</div>
-    <div class="stat-value">${s.value}</div>
-    <div class="stat-sub">${s.sub}</div>
-  </div>`).join('');
+  // Section labels
+  document.getElementById('this-month-label').textContent =
+    now.toLocaleString('default', { month: 'long', year: 'numeric' });
+  document.getElementById('ytd-year-label').textContent = thisYr;
 
-  renderCharts(txns);
+  // ── This Month ──
+  renderThisMonthStats(thisMoTxns, now, thisYM);
+  renderThisMonthDonut(thisMoTxns);
   renderBudgetSection(txns);
+  renderTop10Table('month-top10-table', thisMoTxns, 'month-top10-label',
+    thisMoTxns.length ? monthLabel(thisYM + '-01') : '');
 
-  // Recent 10
-  const recent = [...txns].sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 10);
-  document.getElementById('recent-table').innerHTML = `<table>
-    <thead><tr>
-      <th>Date</th><th>Description</th><th>Category</th><th class="r">Amount</th>
-    </tr></thead>
-    <tbody>${recent.map(t => `<tr>
-      <td class="muted">${fmtDate(t.date)}</td>
-      <td>${t.description}</td>
-      <td>${badgeHTML(t.category)}</td>
-      <td class="r amount-cell">${fmt(t.amount)}</td>
-    </tr>`).join('')}</tbody>
-  </table>`;
+  // ── Year-to-Date ──
+  renderYTDBar(txns, thisYr);
+  renderYTDDonut(ytdTxns);
+  renderYTDMonthlyTable(txns, thisYr);
+  renderTop10Table('ytd-top10-table', ytdTxns, 'ytd-top10-label', thisYr);
 }
 
 // ── Transactions view ────────────────────────────────────────────────────────
