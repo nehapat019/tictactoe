@@ -1,0 +1,72 @@
+Account Statement - (@nehaapatell) ,,,,,,,,,,,,,,,,,,,,,
+Account Activity,,,,,,,,,,,,,,,,,,,,,
+,ID,Datetime,Type,Status,Note,From,To,Amount (total),Amount (tip),Amount (tax),Amount (fee),Tax Rate,Tax Exempt,Funding Source,Destination,Beginning Balance,Ending Balance,Statement Period Venmo Fees,Terminal Location,Year to Date Venmo Fees,Disclaimer
+,,,,,,,,,,,,,,,,$116.05,,,,,
+,4522622961069807746,2026-02-01T00:44:30,Payment,Complete,dinner -1/31,Neha Patel,Kyo Pang,- $98.33,,0,,0,,Venmo balance,,,,,Venmo,,
+,4523415069674516993,2026-02-02T02:58:16,Charge,Complete,nov - dec (electricity + WiFi),Neha Patel,Guzal Yakubova,+ $79.42,,0,,0,,,Venmo balance,,,,Venmo,,
+,4523470613525398429,2026-02-02T04:48:38,Charge,Complete,Adda - Shaheen,Neha Patel,Shaheen Khimani,+ $103.37,,0,,0,,,Venmo balance,,,,Venmo,,
+,4523470625638257723,2026-02-02T04:48:39,Charge,Complete,adda - shayan,Neha Patel,Shaheen Khimani,+ $125.37,,0,,0,,,Venmo balance,,,,Venmo,,
+,4524044208504410082,2026-02-02T23:48:16,Charge,Complete,royal palms,Sanjana G,Neha Patel,- $15.00,,0,,0,,Venmo balance,,,,,Venmo,,
+,4524044374608008698,2026-02-02T23:48:35,Charge,Complete,Drinks at Shuffleboard,Ajay Nadhavajhala,Neha Patel,- $10.31,,0,,0,,Venmo balance,,,,,Venmo,,
+,4524044434854494484,2026-02-02T23:48:43,Charge,Complete,Uber from Sreya’s,Ajay Nadhavajhala,Neha Patel,- $12.66,,0,,0,,Venmo balance,,,,,Venmo,,
+,4524044500528842875,2026-02-02T23:48:50,Charge,Complete,Drinks at Sreya’s Party,Ajay Nadhavajhala,Neha Patel,- $24.49,,0,,0,,Venmo balance,,,,,Venmo,,
+,4524108018883939532,2026-02-03T01:55:02,Charge,Complete,adda,Neha Patel,Sreya Shah,+ $86.87,,0,,0,,,Venmo balance,,,,Venmo,,
+,4524136740899090343,2026-02-03T02:52:06,Charge,Complete,Kopitiam din,Neha Patel,Megan Lee,+ $36.78,,0,,0,,,Venmo balance,,,,Venmo,,
+,4524439607950137304,2026-02-03T12:53:51,Charge,Complete,Kopitiam din,Neha Patel,Guzal Yakubova,+ $33.28,,0,,0,,,Venmo balance,,,,Venmo,,
+,4525532838951427809,2026-02-05T01:05:54,Charge,Complete,Adda,Neha Patel,Gaurav Malhotra,+ $113.37,,0,,0,,,Venmo balance,,,,Venmo,,
+,4529725245230293877,2026-02-10T19:55:28,Charge,Complete,The President’s Cake Movie Tix,Ajay Nadhavajhala,Neha Patel,- $10.24,,0,,0,,Venmo balance,,,,,Venmo,,
+,4529725300008675220,2026-02-10T19:55:34,Charge,Complete,Wonderland,Sreya Shah,Neha Patel,- $24.20,,0,,0,,Venmo balance,,,,,Venmo,,
+,4529725345541615589,2026-02-10T19:55:40,Charge,Complete,Monkey Bar,Ajay Nadhavajhala,Neha Patel,- $108.37,,0,,0,,Venmo balance,,,,,Venmo,,
+,4529725401728697201,2026-02-10T19:55:47,Charge,Complete,Uber from Shaheen’s to Home,Ajay Nadhavajhala,Neha Patel,- $17.57,,0,,0,,Venmo balance,,,,,Venmo,,
+,4530302681807093987,2026-02-11T15:02:44,Charge,Complete,Uber to Comedy Show,Hannah Johnson,Neha Patel,- $11.14,,0,,0,,Venmo balance,,,,,Venmo,,
+,4530302740527143281,2026-02-11T15:02:51,Charge,Complete,Empower from Hannah’s place home- bridgerton,Guzal Yakubova,Neha Patel,- $3.16,,0,,0,,Venmo balance,,,,,Venmo,,
+,4530302757053053488,2026-02-11T15:02:53,Charge,Complete,Uber to all blues,Guzal Yakubova,Neha Patel,- $3.12,,0,,0,,Venmo balance,,,,,Venmo,,
+,4530605344142430942,2026-02-12T01:04:04,Payment,Complete,tip,Neha Patel,chhiring Tamang,- $10.00,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531086231967160927,2026-02-12T16:59:30,Charge,Complete,7th street (fries),Shaheen Khimani,Neha Patel,- $9.84,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531086287575987752,2026-02-12T16:59:37,Charge,Complete,buzz balls for pregame,Shaheen Khimani,Neha Patel,- $10.00,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531086346229289006,2026-02-12T16:59:44,Charge,Complete,torissi,Shaheen Khimani,Neha Patel,- $133.85,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531086393071015155,2026-02-12T16:59:49,Charge,Complete,haan coffee,Shaheen Khimani,Neha Patel,- $9.14,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531086437673180235,2026-02-12T16:59:55,Charge,Complete,publix shenanigans,Shaheen Khimani,Neha Patel,- $9.23,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531086514210622348,2026-02-12T17:00:04,Charge,Complete,stemma,Shaheen Khimani,Neha Patel,- $8.31,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531086797603007680,2026-02-12T17:00:38,Charge,Complete,masquerade ticket + Megan’s share,Neha Patel,Guzal Yakubova,+ $233.33,,0,,0,,,Venmo balance,,,,Venmo,,
+,4531087471090759623,2026-02-12T17:01:58,Payment,Complete,Masquerade 🎟,Meghana Kao,Neha Patel,+ $175.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4531088994302624957,2026-02-12T17:04:59,Payment,Complete,Megan bday!,Michelle Whang,Neha Patel,+ $175.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4531939428295193392,2026-02-13T21:14:39,Payment,Complete,2/13 haircut,Neha Patel,Eian Huang,- $125.40,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531940566780101488,2026-02-13T21:16:55,Payment,Complete,thank you! (dry cuts > wet cuts!),Neha Patel,Mike Hsu,- $25.00,,0,,0,,Venmo balance,,,,,Venmo,,
+,4531940733788969360,2026-02-13T21:17:15,Payment,Complete,thank you!,Neha Patel,mina li,- $10.00,,0,,0,,Venmo balance,,,,,Venmo,,
+,4532000062974191508,2026-02-13T23:15:07,Charge,Complete,masquerade ticket + Megan’s share,Neha Patel,Shaheen Khimani,+ $233.33,,0,,0,,,Venmo balance,,,,Venmo,,
+,4533975552072548348,2026-02-16T16:40:04,Payment,Complete,bar cart! ☺️,isabella rosenbaum,Neha Patel,+ $50.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4537102789886255189,2026-02-21T00:13:20,Payment,Complete,espresso glass,Shaheen Khimani,Neha Patel,+ $6.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4539955855174395644,2026-02-24T22:41:52,Payment,Complete,Table,Sarah Baybeck,Neha Patel,+ $30.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4540021374715808155,2026-02-25T00:52:02,Payment,Complete,A/Cs,Tristan Boutantin,Neha Patel,+ $150.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4540558137565474127,2026-02-25T18:38:29,Payment,Complete,TV,Megan Lee,Neha Patel,+ $196.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4540558344051131305,2026-02-25T18:38:54,Standard Transfer,Issued,,,,"- $1,000.00",,,,,,,TD Bank *0575,,,,Venmo,,
+,4541411075673818850,2026-02-26T22:53:07,Payment,Complete,Lamp!,Maddie Lane,Neha Patel,+ $50.00,,0,,0,,,Venmo balance,,,,Venmo,,
+,4542694222966076956,2026-02-28T17:22:30,Charge,Complete,Osteria Academica,Ajay Nadhavajhala,Neha Patel,- $48.33,,0,,0,,Venmo balance,,,,,Venmo,,
+,,,,,,,,,,,,,,,,,$255.48,$0.00,,$0.00,"In case of errors or questions about your
+        electronic transfers:
+        - Telephone us at 855-812-4430
+        - Write the Venmo Error Resolution Department at
+          222  W. Merchandise Plaza, Suite 800, Chicago, IL 60654; or
+        - Write to us through the Contact Us page
+          (https://help.venmo.com/hc/en-us/requests/new)
+        Contact us as soon as you can if you think your statement or
+        receipt is wrong or if you need more information about
+        a transfer on the statement or receipt. We must hear from
+        you no later than 60 days after we sent you the FIRST
+        statement on which the error or problem appeared.
+        1. Tell us your name and username or phone number.
+        2. Describe the error or the transfer you are unsure about,
+           and explain as clearly as you can why you believe it is
+           an error or why you need more information.
+        3. Tell us the dollar amount of the suspected error.
+        We will investigate your complaint and will correct any
+        error promptly. If we take more than 10 business days to do
+        this, we will credit your account for the amount you think
+        is in error, so that you will have the use of the money
+        during the time it takes us to complete our investigation.
+        In case of errors or questions about your transactions made
+        with your Venmo Mastercard, please consult your
+        Cardholder Agreement
+        (https://venmo.com/legal/bancorp-cardholder-agreement).
+        "
