@@ -862,23 +862,54 @@ const WANTS_CATS = new Set(['Food & Dining', 'Shopping', 'Entertainment', 'Fitne
 const CHASE_MAP = {
   'Food & Drink':        'Food & Dining',
   'Groceries':           'Groceries',
+  'Supermarkets':        'Groceries',
   'Restaurants':         'Food & Dining',
+  'Dining':              'Food & Dining',
+  'Fast Food':           'Food & Dining',
+  'Coffee Shops':        'Food & Dining',
   'Travel':              'Travel',
   'Gas':                 'Transportation',
+  'Gas Stations':        'Transportation',
   'Auto & Transport':    'Transportation',
+  'Parking':             'Transportation',
+  'Public Transit':      'Transportation',
+  'Rideshare':           'Transportation',
   'Shopping':            'Shopping',
   'Merchandise':         'Shopping',
+  'Online Shopping':     'Shopping',
+  'Electronics':         'Shopping',
+  'Clothing':            'Shopping',
   'Entertainment':       'Entertainment',
   'Arts':                'Entertainment',
+  'Movies & DVDs':       'Entertainment',
+  'Music':               'Entertainment',
+  'Games':               'Entertainment',
   'Health & Wellness':   'Health',
   'Medical':             'Health',
+  'Healthcare':          'Health',
+  'Doctor':              'Health',
+  'Pharmacy':            'Health',
+  'Drug Stores':         'Health',
+  'Health Care':         'Health',
   'Bills & Utilities':   'Utilities',
   'Fees & Adjustments':  'Other',
   'Utilities':           'Utilities',
+  'Phone':               'Utilities',
+  'Internet':            'Utilities',
+  'Television':          'Utilities',
   'Personal':            'Personal Care',
+  'Personal Care':       'Personal Care',
+  'Hair':                'Personal Care',
+  'Spa & Massage':       'Personal Care',
+  'Gyms':                'Fitness & Wellness',
+  'Sports':              'Fitness & Wellness',
   'Education':           'Other',
   'Gifts & Donations':   'Other',
+  'Charity':             'Other',
   'Home':                'Shopping',
+  'Home Improvement':    'Shopping',
+  'Rent':                'Rent',
+  'Mortgage':            'Rent',
 };
 
 function mapCategory(raw) {
@@ -892,9 +923,9 @@ const KEYWORD_RULES = [
   { re: /electric|con ed|pge|pseg|water bill|gas bill|internet|verizon|at&t|comcast|spectrum|xfinity|utility|utilities|icloud|google.*storage/i, cat: 'Utilities'         },
   { re: /trader joe|whole foods|safeway|kroger|publix|wegmans|blinkit|westside market|zabar|hashi|grocery|supermarket|market\b/i,               cat: 'Groceries'         },
   { re: /\bmta\b|mta ny go|nyct|uber|lyft|taxi|curb|empower\*|transit|metro|subway|train|bus|parking|shell|bp|chevron|exxon|toll|e-zpass/i,      cat: 'Transportation'    },
-  { re: /pharmacy|cvs|walgreens|rite aid|doctor|hospital|clinic|medical|dental|vision|optometrist/i,                                            cat: 'Health'            },
+  { re: /pharmacy|cvs|walgreens|duane reade|rite aid|doctor|hospital|clinic|medical|dental|vision|optometrist|urgent care|health/i,             cat: 'Health'            },
   { re: /restaurant|cafe|coffee|starbucks|mcdonald|chipotle|subway|pizza|sushi|bagel|deli|bakery|taco|burger|grill|kitchen|dining|doordash|grubhub|ubereats|seamless|gelat|sweet|rivareno|bosphorous|herald|fonty|just salad|maman|yene|banh|mama|sq \*/i, cat: 'Food & Dining' },
-  { re: /amazon|target|walmart|homegoods|depop|calvin klein|nuuly|tokito|h&m|zara|gap|old navy|nordstrom|tj maxx|marshalls|bestbuy|apple store|etsy|costco/i,              cat: 'Shopping'          },
+  { re: /amazon|amzn|target|walmart|homegoods|depop|calvin klein|nuuly|tokito|h&m|zara|gap|old navy|nordstrom|tj maxx|marshalls|bestbuy|best buy|apple store|etsy|costco|ikea|wayfair|chewy/i, cat: 'Shopping' },
   { re: /netflix|spotify|hulu|disney|hbo|apple.*tv|youtube|cinema|theater|theatre|movie|concert|kydlab|ctlp|peek|selvatura|ticketmaster|stub hub/i,                        cat: 'Entertainment'     },
   { re: /gym|fitness|yoga|pilates|soul cycle|peloton|heatwise|spirit studio|equinox|planet fitness|classpass|blink fitness/i,                   cat: 'Fitness & Wellness'},
   { re: /sephora|salon|spa|beauty|haircut|nail|barber|massage|skincare|ulta|venmo|cashapp|zelle|paypal|splitwise/i,                             cat: 'Personal Care'     },
@@ -929,8 +960,8 @@ function loadTxns() {
       // 2. keyword-first: description always wins if it gives a specific match
       const kw = t.description ? categorizeByKeyword(t.description) : 'Other';
       if (kw !== 'Other') cat = kw;
-      // 3. if still unknown, fall back to Other
-      if (!KNOWN_CATS.has(cat)) cat = 'Other';
+      // 3. if cat is still unrecognized (old stored name), try Chase category mapping as migration
+      if (!KNOWN_CATS.has(cat)) cat = mapCategory(cat);
       return { ...t, category: cat };
     });
   } catch { return []; }
@@ -1806,7 +1837,8 @@ function updateSelectedCount() {
 
 function doImport(filename) {
   const checkboxes = document.querySelectorAll('.row-chk');
-  const existing = loadTxns();
+  // Use raw stored data for dedup so we don't rewrite existing transaction categories
+  const rawExisting = JSON.parse(localStorage.getItem('et_txns') || '[]');
   const toAdd = [];
 
   checkboxes.forEach((chk, i) => {
@@ -1827,11 +1859,11 @@ function doImport(filename) {
 
   // Deduplicate: skip if same date+description+amount already exists
   const key = t => `${t.date}|${t.description}|${t.amount}`;
-  const existingKeys = new Set(existing.map(key));
+  const existingKeys = new Set(rawExisting.map(key));
   const fresh = toAdd.filter(t => !existingKeys.has(key(t)));
   const dupes = toAdd.length - fresh.length;
 
-  saveTxns([...existing, ...fresh]);
+  saveTxns([...rawExisting, ...fresh]);
 
   // Reset import
   document.getElementById('step-review').style.display = 'none';
