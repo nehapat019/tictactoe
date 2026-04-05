@@ -1073,12 +1073,34 @@ function saveTxns(arr)  { localStorage.setItem('et_txns', JSON.stringify(arr)); 
 function loadIncome() { try { return JSON.parse(localStorage.getItem('et_income') || '{}'); } catch { return {}; } }
 function saveIncome(obj) { localStorage.setItem('et_income', JSON.stringify(obj)); }
 
-// Goals: { needs: 50, wants: 30, savings: 20 }  (percentages)
-function loadGoals() {
-  try { const g = JSON.parse(localStorage.getItem('et_goals') || '{}'); return { needs: g.needs ?? 50, wants: g.wants ?? 30, savings: g.savings ?? 20 }; }
-  catch { return { needs: 50, wants: 30, savings: 20 }; }
+/// Goals stored per-month: { "2026-01": { needs:50, wants:30, savings:20 }, ... }
+// Falls back to nearest prior month, then to 50/30/20.
+function loadGoals(ym) {
+  try {
+    let map = JSON.parse(localStorage.getItem('et_goals') || '{}');
+    // Migrate old flat format { needs, wants, savings } → per-month
+    if (typeof map.needs === 'number') {
+      const migrated = { '2026-01': { needs: map.needs, wants: map.wants, savings: map.savings } };
+      localStorage.setItem('et_goals', JSON.stringify(migrated));
+      map = migrated;
+    }
+    if (ym && map[ym]) return map[ym];
+    // Walk backwards through stored months to find the nearest prior goal
+    if (ym) {
+      const prior = Object.keys(map).sort().filter(k => k <= ym);
+      if (prior.length) return map[prior[prior.length - 1]];
+    }
+    return { needs: 50, wants: 30, savings: 20 };
+  } catch { return { needs: 50, wants: 30, savings: 20 }; }
 }
-function saveGoals(obj) { localStorage.setItem('et_goals', JSON.stringify(obj)); }
+function saveGoals(ym, obj) {
+  try {
+    let map = JSON.parse(localStorage.getItem('et_goals') || '{}');
+    if (typeof map.needs === 'number') map = {}; // clear any stale flat format
+    map[ym] = obj;
+    localStorage.setItem('et_goals', JSON.stringify(map));
+  } catch {}
+}
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const fmt = n => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1641,7 +1663,7 @@ function renderYTDDonut(ytdTxns) {
 function renderThisMonthStats(thisMoTxns, displayYM) {
   const incomeMap  = loadIncome();
   const income     = incomeMap[displayYM] || 0;
-  const goals      = loadGoals();
+  const goals      = loadGoals(displayYM);
   const totalSpend = thisMoTxns.reduce((s, t) => s + t.amount, 0);
   const needsSpent = thisMoTxns.filter(t => NEEDS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
   const wantsSpent = thisMoTxns.filter(t => WANTS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
@@ -1748,7 +1770,7 @@ function renderBudgetSection(txns, displayYM) {
   document.getElementById('income-month-label').textContent = monthLabel(displayYM + '-01');
 
   // Goals
-  const goals = loadGoals();
+  const goals = loadGoals(displayYM);
   if (document.activeElement !== document.getElementById('needs-pct-input') &&
       document.activeElement !== document.getElementById('needs-pct-slider')) {
     document.getElementById('needs-pct-slider').value = goals.needs;
@@ -2231,8 +2253,9 @@ function syncGoals() {
   document.getElementById('wants-pct-input').value    = wants;
   document.getElementById('savings-pct-slider').value = savings;
   document.getElementById('savings-pct-input').value  = savings;
-  saveGoals({ needs, wants, savings });
-  renderBudgetSection(loadTxns());
+  const ym = currentDisplayYM || new Date().toISOString().slice(0, 7);
+  saveGoals(ym, { needs, wants, savings });
+  renderBudgetSection(loadTxns(), ym);
 }
 
 document.getElementById('needs-pct-slider').addEventListener('input', e => {
