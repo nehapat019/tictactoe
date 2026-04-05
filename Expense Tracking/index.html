@@ -477,6 +477,19 @@
       font-size: 13px; color: var(--text-2);
     }
 
+    /* ── Month picker arrows ─────────────────────────────────────────── */
+    .month-picker { display: flex; align-items: center; gap: 6px; }
+    .month-arrow {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: var(--surface); color: var(--text-2);
+      font-size: 15px; cursor: pointer; transition: all .15s;
+      user-select: none;
+    }
+    .month-arrow:hover:not(:disabled) { background: var(--bg); color: var(--text); border-color: var(--text-2); }
+    .month-arrow:disabled { opacity: .35; cursor: default; }
+
     /* ── Inline-editable transaction cells ───────────────────────────── */
     .amt-input {
       width: 90px;
@@ -586,8 +599,13 @@
     <div id="dashboard-content" style="display:none">
 
       <!-- ════ THIS MONTH ════ -->
-      <div class="section-heading">
-        This Month <span class="section-heading-sub" id="this-month-label"></span>
+      <div class="section-heading" style="justify-content:space-between;align-items:center">
+        <span>This Month</span>
+        <div class="month-picker">
+          <button class="month-arrow" id="btn-month-prev" title="Previous month">&#8249;</button>
+          <span class="section-heading-sub" id="this-month-label" style="min-width:100px;text-align:center"></span>
+          <button class="month-arrow" id="btn-month-next" title="Next month">&#8250;</button>
+        </div>
       </div>
 
       <!-- Stat cards -->
@@ -1780,6 +1798,8 @@ function resolveDisplayMonth(txns) {
 }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
+let currentDisplayYM = null;  // null = auto-resolve on next render
+
 function renderDashboard() {
   const txns    = loadTxns();
   const isEmpty = txns.length === 0;
@@ -1787,12 +1807,25 @@ function renderDashboard() {
   document.getElementById('dashboard-empty').style.display   = isEmpty ? '' : 'none';
   document.getElementById('dashboard-content').style.display = isEmpty ? 'none' : '';
 
-  if (isEmpty) return;
+  if (isEmpty) { currentDisplayYM = null; return; }
 
-  const displayYM  = resolveDisplayMonth(txns);
-  const displayYr  = displayYM.slice(0, 4);
-  const displayMo  = txns.filter(t => t.date.startsWith(displayYM));
-  const ytdTxns    = txns.filter(t => t.date.startsWith(displayYr));
+  // Collect months that have data, sorted ascending
+  const availableMonths = [...new Set(txns.map(t => t.date.slice(0, 7)))].sort();
+
+  // Auto-resolve if no selection yet, or if the selection is no longer valid
+  if (!currentDisplayYM || !availableMonths.includes(currentDisplayYM)) {
+    currentDisplayYM = resolveDisplayMonth(txns);
+  }
+
+  const displayYM = currentDisplayYM;
+  const displayYr = displayYM.slice(0, 4);
+  const displayMo = txns.filter(t => t.date.startsWith(displayYM));
+  const ytdTxns   = txns.filter(t => t.date.startsWith(displayYr));
+
+  // Month picker — enable/disable arrows based on available months
+  const idx  = availableMonths.indexOf(displayYM);
+  document.getElementById('btn-month-prev').disabled = idx <= 0;
+  document.getElementById('btn-month-next').disabled = idx >= availableMonths.length - 1;
 
   // Section labels
   document.getElementById('this-month-label').textContent = monthLabel(displayYM + '-01');
@@ -1896,7 +1929,7 @@ function showReview(rows, filename, format) {
     <td>${r.description}</td>
     <td class="muted">${r.originalCategory || '—'}</td>
     <td data-i="${i}" class="cat-cell">${catSelectHTML(r.category)}</td>
-    <td class="r amount-cell">${fmt(r.amount)}</td>
+    <td class="r"><input type="number" class="amt-input review-amt" data-i="${i}" value="${r.amount}" min="0.01" step="0.01"></td>
   </tr>`).join('');
 
   updateSelectedCount();
@@ -2000,7 +2033,21 @@ async function handlePDFFile(file) {
 
 // Review table events
 document.getElementById('review-tbody').addEventListener('change', e => {
-  if (e.target.classList.contains('row-chk')) updateSelectedCount();
+  if (e.target.classList.contains('row-chk')) { updateSelectedCount(); return; }
+  if (e.target.classList.contains('review-amt')) {
+    const i   = parseInt(e.target.dataset.i);
+    const val = Math.round(parseFloat(e.target.value || '0') * 100) / 100;
+    if (!val || val <= 0) { e.target.value = pendingRows[i].amount; return; }
+    pendingRows[i].amount = val;
+    // Refresh the summary line (total)
+    const total = pendingRows.reduce((s, r) => s + r.amount, 0);
+    const dates = pendingRows.map(r => r.date).sort();
+    document.getElementById('review-stats').innerHTML = `
+      <span class="review-stat"><strong>${pendingRows.length}</strong> transactions</span>
+      <span class="review-stat"><strong>${fmt(total)}</strong> total</span>
+      <span class="review-stat"><strong>${fmtDate(dates[0])}</strong> → <strong>${fmtDate(dates[dates.length-1])}</strong></span>
+    `;
+  }
 });
 document.getElementById('chk-all').addEventListener('change', e => {
   document.querySelectorAll('.row-chk').forEach(c => c.checked = e.target.checked);
@@ -2064,6 +2111,20 @@ document.getElementById('txn-tbody').addEventListener('click', e => {
   saveTxns(loadTxns().filter(t => t.id != id));
   renderTransactions();
   renderDashboard();
+});
+
+// Month picker arrows
+document.getElementById('btn-month-prev').addEventListener('click', () => {
+  const txns = loadTxns();
+  const months = [...new Set(txns.map(t => t.date.slice(0, 7)))].sort();
+  const idx = months.indexOf(currentDisplayYM);
+  if (idx > 0) { currentDisplayYM = months[idx - 1]; renderDashboard(); }
+});
+document.getElementById('btn-month-next').addEventListener('click', () => {
+  const txns = loadTxns();
+  const months = [...new Set(txns.map(t => t.date.slice(0, 7)))].sort();
+  const idx = months.indexOf(currentDisplayYM);
+  if (idx < months.length - 1) { currentDisplayYM = months[idx + 1]; renderDashboard(); }
 });
 
 // Transactions: search/filter
