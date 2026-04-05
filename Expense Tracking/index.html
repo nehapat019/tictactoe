@@ -1736,23 +1736,33 @@ function renderYTDMonthlyTable(txns, thisYr) {
     return { ym, income, spend };
   });
 
+  const fmtSavings = (income, spend) => {
+    if (!income) return '—';
+    const s = income - spend;
+    const cls = s >= 0 ? 'text-success' : 'text-danger';
+    return `<span class="${cls}" style="font-weight:600">${s >= 0 ? '' : '−'}${fmt(Math.abs(s))}</span>`;
+  };
+
   document.getElementById('ytd-monthly-table').innerHTML = rows.length
     ? `<table>
         <thead><tr>
           <th>Month</th>
           <th class="r">Income</th>
           <th class="r">Total Spend</th>
+          <th class="r">Savings</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `<tr>
             <td style="font-weight:500">${monthLabel(r.ym + '-01')}</td>
             <td class="r muted">${r.income ? fmt(r.income) : '—'}</td>
             <td class="r amount-cell">${fmt(r.spend)}</td>
+            <td class="r">${fmtSavings(r.income, r.spend)}</td>
           </tr>`).join('')}
           <tr class="total-row">
             <td>Total</td>
             <td class="r">${totIncome ? fmt(totIncome) : '—'}</td>
             <td class="r amount-cell">${fmt(totSpend)}</td>
+            <td class="r">${fmtSavings(totIncome, totSpend)}</td>
           </tr>
         </tbody>
       </table>`
