@@ -477,6 +477,49 @@
       font-size: 13px; color: var(--text-2);
     }
 
+    /* ── Income tab ──────────────────────────────────────────────────── */
+    .income-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 10px;
+    }
+    .income-month-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      transition: border-color .15s, background .15s;
+    }
+    .income-month-row:focus-within {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .income-month-name { flex: 1; font-size: 14px; font-weight: 600; }
+    .income-month-prefix { font-size: 15px; font-weight: 600; color: var(--text-2); }
+    .income-month-field {
+      width: 120px;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 15px; font-weight: 600;
+      text-align: right;
+      outline: none;
+      background: var(--surface);
+      transition: border-color .15s;
+    }
+    .income-month-field:focus { border-color: var(--primary); }
+    .income-ytd-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 0 0;
+      margin-top: 16px;
+      border-top: 2px solid var(--border);
+    }
+    .income-ytd-label { font-size: 13px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .4px; }
+    .income-ytd-value { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+
     /* ── Dashboard sections ───────────────────────────────────────────── */
     .section-heading {
       font-size: 19px; font-weight: 700; letter-spacing: -.3px;
@@ -502,6 +545,7 @@
     <div class="brand">💰 Expense Tracker</div>
     <div class="nav-links">
       <button class="nav-link active" data-view="dashboard">Dashboard</button>
+      <button class="nav-link" data-view="income">Income</button>
       <button class="nav-link" data-view="import">Import Statement</button>
       <button class="nav-link" data-view="transactions">Transactions</button>
     </div>
@@ -561,9 +605,9 @@
           <div class="card-body">
             <div class="income-input-row">
               <span class="income-prefix">$</span>
-              <input type="number" id="income-input" class="income-input" placeholder="0" min="0" step="100">
+              <span id="income-display" style="font-size:28px;font-weight:700;letter-spacing:-1px;color:var(--text)">—</span>
             </div>
-            <p class="income-hint">Monthly net income (post taxes, 401k &amp; market)</p>
+            <p class="income-hint">Set in the <span class="link" data-view="income" style="cursor:pointer">Income tab</span></p>
 
             <div class="goal-table-wrap">
               <!-- Header -->
@@ -781,6 +825,26 @@
       <div class="flex-end mt-4">
         <button class="btn btn-ghost" id="btn-back2">← Back</button>
         <button class="btn btn-primary" id="btn-confirm-import2">Import Selected</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Income ────────────────────────────────────────────────────────────── -->
+  <div class="view" id="view-income">
+    <div class="page-title">Monthly Income <span>2026</span></div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">2026 Monthly Income</div>
+          <div class="card-sub">Net income after taxes, 401k &amp; market contributions — updates Dashboard budget calculations automatically</div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="income-grid" id="income-grid"></div>
+        <div class="income-ytd-bar">
+          <span class="income-ytd-label">2026 Total Income Entered</span>
+          <span class="income-ytd-value" id="income-ytd-total">$0</span>
+        </div>
       </div>
     </div>
   </div>
@@ -1648,10 +1712,9 @@ function renderBudgetSection(txns, displayYM) {
   if (!displayYM) displayYM = resolveDisplayMonth(txns);
 
   // Income for display month
-  const incomeMap   = loadIncome();
-  const income      = incomeMap[displayYM] || 0;
-  const incomeInput = document.getElementById('income-input');
-  if (document.activeElement !== incomeInput) incomeInput.value = income || '';
+  const incomeMap = loadIncome();
+  const income    = incomeMap[displayYM] || 0;
+  document.getElementById('income-display').textContent = income ? fmt(income) : '—';
   document.getElementById('income-month-label').textContent = monthLabel(displayYM + '-01');
 
   // Goals
@@ -1985,12 +2048,57 @@ document.getElementById('btn-clear').addEventListener('click', () => {
   showToast('All transactions cleared');
 });
 
+// ── Income tab ───────────────────────────────────────────────────────────────
+const INCOME_MONTHS_2026 = [
+  '2026-01','2026-02','2026-03','2026-04','2026-05','2026-06',
+  '2026-07','2026-08','2026-09','2026-10','2026-11','2026-12',
+];
+const MONTH_NAMES_FULL = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+
+function updateIncomeYTDTotal() {
+  const map   = loadIncome();
+  const total = INCOME_MONTHS_2026.reduce((s, ym) => s + (map[ym] || 0), 0);
+  document.getElementById('income-ytd-total').textContent = total ? fmt(total) : '$0';
+}
+
+function renderIncome() {
+  const map  = loadIncome();
+  const grid = document.getElementById('income-grid');
+  grid.innerHTML = INCOME_MONTHS_2026.map((ym, i) => {
+    const val = map[ym] || '';
+    return `<div class="income-month-row">
+      <span class="income-month-name">${MONTH_NAMES_FULL[i]}</span>
+      <span class="income-month-prefix">$</span>
+      <input type="number" class="income-month-field" data-ym="${ym}"
+             value="${val}" placeholder="0" min="0" step="100">
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.income-month-field').forEach(input => {
+    input.addEventListener('change', () => {
+      const ym  = input.dataset.ym;
+      const val = parseFloat(input.value) || 0;
+      const m   = loadIncome();
+      if (val > 0) m[ym] = val; else delete m[ym];
+      saveIncome(m);
+      updateIncomeYTDTotal();
+      renderDashboard();
+    });
+  });
+
+  updateIncomeYTDTotal();
+}
+
 // ── View switcher ────────────────────────────────────────────────────────────
 function switchView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   if (name === 'dashboard')    renderDashboard();
   if (name === 'transactions') renderTransactions();
+  if (name === 'income')       renderIncome();
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -2005,14 +2113,6 @@ function showToast(msg, isError = false) {
 }
 
 // ── Income & Goals events ─────────────────────────────────────────────────────
-document.getElementById('income-input').addEventListener('change', () => {
-  const val  = parseFloat(document.getElementById('income-input').value) || 0;
-  const ym   = new Date().toISOString().slice(0, 7);
-  const map  = loadIncome();
-  map[ym]    = val;
-  saveIncome(map);
-  renderBudgetSection(loadTxns());
-});
 
 function syncGoals() {
   const clamp = v => Math.min(100, Math.max(0, parseInt(v) || 0));
