@@ -1667,15 +1667,13 @@ function renderYTDMonthlyTable(txns, thisYr) {
   const ytdTxns   = txns.filter(t => t.date.startsWith(thisYr));
   const months    = [...new Set(ytdTxns.map(t => t.date.slice(0, 7)))].sort();
 
-  let totIncome = 0, totNeeds = 0, totWants = 0, totSpend = 0;
+  let totIncome = 0, totSpend = 0;
   const rows = months.map(ym => {
     const moTxns = ytdTxns.filter(t => t.date.startsWith(ym));
     const income = incomeMap[ym] || 0;
-    const needs  = moTxns.filter(t => NEEDS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
-    const wants  = moTxns.filter(t => WANTS_CATS.has(t.category)).reduce((s, t) => s + t.amount, 0);
     const spend  = moTxns.reduce((s, t) => s + t.amount, 0);
-    totIncome += income; totNeeds += needs; totWants += wants; totSpend += spend;
-    return { ym, income, needs, wants, spend };
+    totIncome += income; totSpend += spend;
+    return { ym, income, spend };
   });
 
   document.getElementById('ytd-monthly-table').innerHTML = rows.length
@@ -1683,23 +1681,17 @@ function renderYTDMonthlyTable(txns, thisYr) {
         <thead><tr>
           <th>Month</th>
           <th class="r">Income</th>
-          <th class="r">Needs</th>
-          <th class="r">Wants</th>
           <th class="r">Total Spend</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `<tr>
             <td style="font-weight:500">${monthLabel(r.ym + '-01')}</td>
             <td class="r muted">${r.income ? fmt(r.income) : '—'}</td>
-            <td class="r">${fmt(r.needs)}</td>
-            <td class="r">${fmt(r.wants)}</td>
             <td class="r amount-cell">${fmt(r.spend)}</td>
           </tr>`).join('')}
           <tr class="total-row">
             <td>Total</td>
             <td class="r">${totIncome ? fmt(totIncome) : '—'}</td>
-            <td class="r">${fmt(totNeeds)}</td>
-            <td class="r">${fmt(totWants)}</td>
             <td class="r amount-cell">${fmt(totSpend)}</td>
           </tr>
         </tbody>
