@@ -477,6 +477,21 @@
       font-size: 13px; color: var(--text-2);
     }
 
+    /* ── Inline-editable transaction cells ───────────────────────────── */
+    .amt-input {
+      width: 90px;
+      padding: 3px 6px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      font-size: 14px; font-weight: 600;
+      text-align: right;
+      outline: none;
+      background: transparent;
+      transition: border-color .15s, background .15s;
+    }
+    .amt-input:hover { border-color: var(--border); background: var(--bg); }
+    .amt-input:focus { border-color: var(--primary); background: var(--surface); }
+
     /* ── Income tab ──────────────────────────────────────────────────── */
     .income-grid {
       display: grid;
@@ -1019,6 +1034,10 @@ function loadTxns() {
   try {
     const txns = JSON.parse(localStorage.getItem('et_txns') || '[]');
     return txns.map(t => {
+      // If user manually set a category, honour it and skip keyword matching
+      if (t.manualCategory && KNOWN_CATS.has(t.manualCategory)) {
+        return { ...t, category: t.manualCategory };
+      }
       // 1. apply name migration for old category names
       let cat = CAT_MIGRATION[t.category] || t.category;
       // 2. keyword-first: description always wins if it gives a specific match
@@ -1467,8 +1486,9 @@ function sourceTypeBadge(type) {
   return `<span class="badge" style="background:${s.color}18;color:${s.color}">${s.label}</span>`;
 }
 
-function catSelectHTML(selected) {
-  return `<div class="select-wrap"><select class="cat-select">
+function catSelectHTML(selected, txnId) {
+  const idAttr = txnId != null ? ` data-id="${txnId}"` : '';
+  return `<div class="select-wrap"><select class="cat-select"${idAttr}>
     ${CAT_NAMES.map(n => `<option value="${n}" ${n === selected ? 'selected' : ''}>${n}</option>`).join('')}
   </select></div>`;
 }
@@ -1833,9 +1853,9 @@ function renderTransactions() {
     filtered.map(t => `<tr>
       <td class="muted">${fmtDate(t.date)}</td>
       <td>${t.description}</td>
-      <td>${badgeHTML(t.category)}</td>
+      <td>${catSelectHTML(t.category, t.id)}</td>
       <td>${sourceTypeBadge(t.sourceType)}</td>
-      <td class="r amount-cell">${fmt(t.amount)}</td>
+      <td class="r"><input type="number" class="amt-input" data-id="${t.id}" value="${t.amount}" min="0.01" step="0.01"></td>
       <td><button class="btn btn-ghost btn-sm" data-delete="${t.id}">✕</button></td>
     </tr>`).join('') +
     `<tr class="total-row">
@@ -2002,6 +2022,39 @@ document.getElementById('btn-confirm-import').addEventListener('click',  () => {
 document.getElementById('btn-confirm-import2').addEventListener('click', () => {
   const name = document.getElementById('review-filename').textContent;
   doImport(name);
+});
+
+// Transactions: inline edits (category + amount)
+document.getElementById('txn-tbody').addEventListener('change', e => {
+  // Category dropdown
+  if (e.target.classList.contains('cat-select') && e.target.dataset.id) {
+    const id  = e.target.dataset.id;
+    const cat = e.target.value;
+    const raw = JSON.parse(localStorage.getItem('et_txns') || '[]');
+    const idx = raw.findIndex(t => t.id == id);
+    if (idx !== -1) {
+      raw[idx].category       = cat;
+      raw[idx].manualCategory = cat;
+      saveTxns(raw);
+      renderDashboard();
+    }
+    return;
+  }
+  // Amount input
+  if (e.target.classList.contains('amt-input') && e.target.dataset.id) {
+    const id  = e.target.dataset.id;
+    const val = Math.round(parseFloat(e.target.value || '0') * 100) / 100;
+    if (!val || val <= 0) { e.target.value = e.target.defaultValue; return; }
+    const raw = JSON.parse(localStorage.getItem('et_txns') || '[]');
+    const idx = raw.findIndex(t => t.id == id);
+    if (idx !== -1) {
+      raw[idx].amount = val;
+      saveTxns(raw);
+      renderTransactions();
+      renderDashboard();
+    }
+    return;
+  }
 });
 
 // Transactions: delete
